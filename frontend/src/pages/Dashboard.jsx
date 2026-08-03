@@ -42,8 +42,8 @@ export default function Dashboard() {
               <Zap className="w-5 h-5 text-violet" />
             </div>
             <div className="hidden sm:block">
-              <h1 className="font-bold text-text text-sm leading-tight">Binary Blitz Dashboard</h1>
-              <p className="text-[11px] text-text-dim">Autonomous Claim Processing Pipeline</p>
+              <h1 className="font-bold text-text text-sm leading-tight">ClaimBlitz Dashboard</h1>
+              <p className="text-[11px] text-text-dim">9-Agent Collaborative Claim Pipeline</p>
             </div>
           </div>
 

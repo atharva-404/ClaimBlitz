@@ -1,79 +1,61 @@
-# Binary Blitz Backend
+# ClaimBlitz Backend
 
-FastAPI backend for your Autonomous Medical Insurance Claim Agent.
+Multi-agent medical insurance claim processing system built with FastAPI.
 
-## How Risk Is Calculated (No LLM)
+## Quick Start
 
-This backend uses a deterministic rules engine, not an LLM.
-
-Input basis:
-- Extracted fields from uploaded PDF/image text
-- Billing ratio (`approvedAmount / totalBilled`)
-- Claim amount thresholds
-- ICD-10 and CPT format checks
-- Provider in-network lookup
-- Missing-field penalties
-
-Output:
-- `riskScore` in range `[0, 1]`
-- `riskLabel` (`LOW`, `MEDIUM`, `HIGH`)
-- `recommendation` (`APPROVE`, `REVIEW`, `REJECT`)
-
-## Endpoints
-
-- `GET /health` -> service status
-- `POST /process` -> claim processing (multipart file upload: `file`)
-
-## OCR Notes
-
-- PDF extraction is handled by `pypdf`.
-- Image OCR uses `pytesseract` + `pillow`.
-- For image OCR to work, Tesseract OCR engine must be installed on your machine.
-
-## Supabase (Database)
-
-This project can persist each processed claim to Supabase.
-
-Setup:
-1. Copy `.env.example` to `.env`.
-2. Set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`.
-3. Optionally set `SUPABASE_TABLE` (default: `claims`).
-
-If Supabase is not configured, processing still works and only persistence is skipped.
-
-Suggested table schema (`claims`):
-- `id` uuid primary key default `gen_random_uuid()`
-- `created_at` timestamptz not null
-- `source_file` text
-- `patient_name` text
-- `policy_number` text
-- `provider` text
-- `diagnosis_code` text
-- `cpt_code` text
-- `total_billed` numeric
-- `approved_amount` numeric
-- `patient_responsibility` numeric
-- `risk_score` numeric
-- `risk_label` text
-- `recommendation` text
-- `email_draft` text
-- `whatsapp_draft` text
-- `claim_json` jsonb
-
-Response shape is aligned to the frontend hook expectation in `frontend/src/hooks/useClaimAgent.js`.
-
-## Run Locally
-
-1. Create and activate a virtual environment
-2. Install dependencies
-3. Start uvicorn
-
-```powershell
-cd backend
+```bash
+# Setup
 python -m venv .venv
-.\.venv\Scripts\Activate.ps1
+.venv\Scripts\activate
 pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
+
+# Configure
+cp .env.example .env
+# Edit .env with your Groq API key and MongoDB URL
+
+# Run
+uvicorn main:app --reload --port 8000
 ```
 
-Swagger docs will be available at `http://localhost:8000/docs`.
+## Architecture
+
+The backend is organized around the `agentcore` package:
+
+- `main.py` — FastAPI app entrypoint
+- `agentcore/` — The multi-agent system
+  - `protocol.py` — Shared types (AgentMessage, AgentFinding, enums)
+  - `llm.py` — Async LLM client (Groq primary, Ollama fallback)
+  - `base.py` — Abstract Agent base class
+  - `supervisor.py` — Workflow orchestrator (state machine)
+  - `agents/` — 9 concrete agent implementations
+  - `api/` — FastAPI routes and schemas
+  - `db/` — MongoDB repositories
+  - `memory.py` / `pinecone_memory.py` — Agent semantic memory
+  - `blackboard.py` — Redis shared working memory
+  - `worker.py` — Celery distributed task processing
+  - `security.py` — JWT, RBAC, rate limiting
+  - `observability.py` — OpenTelemetry, Prometheus, Sentry
+
+## API
+
+The main endpoint for the frontend is `POST /process` which accepts a PDF file upload and returns the full multi-agent analysis result.
+
+Full REST API available under `/v2/*` prefix. See `/docs` for interactive OpenAPI docs.
+
+## Testing
+
+```bash
+pytest -q
+```
+
+## Deployment
+
+```bash
+# Docker
+docker build -t claimblitz-api .
+docker run -p 8000:8000 --env-file .env claimblitz-api
+
+# Celery worker (optional, for async processing)
+celery -A agentcore.worker worker --loglevel=info --pool=solo
+```

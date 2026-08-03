@@ -1,10 +1,14 @@
 import { useState, useCallback, useRef } from 'react'
 
 const AGENT_STEPS = [
-  { id: 'scanner', name: 'Scanner Agent', description: 'Extracting medical claim data from document', icon: 'ScanLine' },
-  { id: 'validator', name: 'Validator Agent', description: 'Checking policy compliance & ICD-10 codes', icon: 'ShieldCheck' },
-  { id: 'risk', name: 'Risk Analyst', description: 'Analyzing fraud indicators & error patterns', icon: 'Activity' },
-  { id: 'comm', name: 'Comm Agent', description: 'Drafting communication templates', icon: 'MessageSquare' },
+  { id: 'scanner', name: 'Scanner Agent', description: 'Validating document format and quality', icon: 'ScanLine' },
+  { id: 'ocr', name: 'OCR Agent', description: 'Extracting structured fields from document', icon: 'ScanLine' },
+  { id: 'validator', name: 'Validator Agent', description: 'Checking data consistency & format', icon: 'ShieldCheck' },
+  { id: 'medical', name: 'Medical Expert', description: 'Assessing clinical plausibility (ICD/CPT)', icon: 'Activity' },
+  { id: 'policy', name: 'Policy Expert', description: 'Checking coverage rules & exclusions', icon: 'ShieldCheck' },
+  { id: 'fraud', name: 'Fraud Detection', description: 'Analyzing fraud patterns & duplicates', icon: 'Activity' },
+  { id: 'risk', name: 'Risk Assessment', description: 'Computing risk score & category', icon: 'Activity' },
+  { id: 'comm', name: 'Communication', description: 'Drafting policyholder messages', icon: 'MessageSquare' },
 ]
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
@@ -136,7 +140,7 @@ export function useClaimAgent() {
     try {
       markProcessing(0, demoMode && !uploadedFile
         ? '[INFO] Scanner Agent: Loading built-in demo claim payload...'
-        : '[INFO] Scanner Agent: Uploading claim document and extracting structured fields...')
+        : '[INFO] Scanner Agent: Uploading and processing claim through 9-agent pipeline...')
 
       let data
       if (demoMode && !uploadedFile) {
@@ -147,10 +151,28 @@ export function useClaimAgent() {
         const formData = new FormData()
         formData.append('file', uploadedFile)
 
+        // Start animating agent steps while backend processes
+        const stepAnimator = setInterval(() => {
+          setAgents(prev => {
+            const nextIdle = prev.findIndex(a => a.status === 'idle')
+            if (nextIdle > 0 && nextIdle < prev.length) {
+              return prev.map((a, i) => {
+                if (i < nextIdle) return { ...a, status: 'completed' }
+                if (i === nextIdle) return { ...a, status: 'processing' }
+                return a
+              })
+            }
+            return prev
+          })
+          setCurrentStep(prev => Math.min(prev + 1, AGENT_STEPS.length - 2))
+        }, 2500)
+
         const response = await fetch(`${API_BASE_URL}/process`, {
           method: 'POST',
           body: formData,
         })
+
+        clearInterval(stepAnimator)
 
         if (!response.ok) {
           const err = await response.json().catch(() => ({}))
@@ -158,43 +180,29 @@ export function useClaimAgent() {
         }
 
         data = await response.json()
-        markCompleted(0, `[SUCCESS] Scanner Agent: Extraction complete for ${uploadedFile.name}`)
+        markCompleted(0, `[SUCCESS] Pipeline complete: ${data.findings?.length || 0} agents contributed`)
       }
 
-      addTerminalLog('[AGENT] Scanner Agent -> Validator Agent: Structured payload transfer initiated')
-      if ((data.extractionIssues || []).length > 0) {
-        addTerminalLog(`[WARN] Scanner Agent -> Validator Agent: ${data.extractionIssues.length} extraction issues detected`)
+      addTerminalLog('[AGENT] Pipeline: All agents processed claim data')
+      await wait(100)
+
+      // Show agent findings in terminal
+      if (data.findings) {
+        for (const f of data.findings) {
+          addTerminalLog(`[${f.verdict === 'approve' ? 'SUCCESS' : f.verdict === 'reject' ? 'WARN' : 'DATA'}] ${f.agent}: ${f.verdict.toUpperCase()} (conf=${f.confidence?.toFixed(2)}) — ${f.reasoning?.slice(0, 60) || ''}`)
+        }
       }
-      await wait(250)
 
-      markProcessing(1, '[INFO] Validator Agent: Running consistency and policy checks...')
-      await wait(300)
-      markCompleted(1, `[SUCCESS] Validator Agent: ICD ${data.claimData?.diagnosisCode || 'N/A'} and CPT ${data.claimData?.cptCode || 'N/A'} validated`)
-      addTerminalLog('[AGENT] Validator Agent -> Risk Analyst: Validation summary and issue context shared')
-      await wait(250)
-
-      markProcessing(2, '[INFO] Risk Analyst: Computing risk score and recommendation...')
-      setRiskScore(data.riskScore ?? 0)
-      await wait(300)
-      markCompleted(2, `[DATA] Risk Score: ${data.riskScore} (${data.riskLabel})`)
-      if ((data.riskReasons || []).length > 0) {
-        addTerminalLog(`[AGENT] Risk Analyst -> Comm Agent: Sent ${(data.riskReasons || []).length} risk reasons for explanation drafts`)
-      }
-      await wait(250)
-
-      markProcessing(3, '[INFO] Comm Agent: Generating patient and insurer communication drafts...')
-      await wait(300)
-      markCompleted(3, '[SUCCESS] Comm Agent: Email and WhatsApp drafts generated')
+      // Mark all agents complete
+      setAgents(AGENT_STEPS.map((a) => ({ ...a, status: 'completed', logs: [] })))
+      setCurrentStep(AGENT_STEPS.length - 1)
 
       setResults(data)
       persistClaim(data, uploadedFile?.name)
       setRiskScore(data.riskScore ?? 0)
-      setCurrentStep(AGENT_STEPS.length - 1)
-      setAgents(AGENT_STEPS.map((a) => ({ ...a, status: 'completed', logs: [] })))
-      addTerminalLog(`[DATA] Claim: ${data.claimData?.patientName || 'Unknown'} | Provider: ${data.claimData?.provider || 'Unknown'}`)
-      addTerminalLog('[SYSTEM] ALL AGENTS COMPLETE — Backend processing finished')
-      addTerminalLog(`[SYSTEM] Recommendation: ${data.recommendation} | Risk: ${data.riskLabel} (${data.riskScore})`)
-      addTerminalLog('[SYSTEM] Claim snapshot saved to local storage for submission portal handoff')
+      addTerminalLog(`[DATA] Recommendation: ${data.recommendation} | Risk: ${data.riskLabel} (${data.riskScore})`)
+      addTerminalLog(`[SYSTEM] Decision Steps: ${data.decisionSteps || '?'} | Stage: ${data.stage || 'completed'}`)
+      addTerminalLog('[SYSTEM] ALL AGENTS COMPLETE — Claim processing finished')
       setIsComplete(true)
     } catch (error) {
       console.error('Process failed:', error)

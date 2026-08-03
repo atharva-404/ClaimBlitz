@@ -55,8 +55,8 @@ function Hero() {
         {/* Subtitle */}
         <motion.p variants={fadeUp} initial="hidden" animate="visible" custom={2}
           className="text-base md:text-lg text-text-muted max-w-2xl mx-auto mb-12 leading-relaxed">
-          Four autonomous AI agents process, validate, analyze, and communicate medical claims
-          in seconds — not days. Welcome to the future of healthcare insurance.
+          Nine specialized AI agents collaborate to process, validate, analyze, and approve medical claims
+          in seconds — not days. Debate mode resolves disagreements. Welcome to the future of healthcare insurance.
         </motion.p>
 
         {/* CTA */}
@@ -87,8 +87,8 @@ function Hero() {
           className="grid grid-cols-3 gap-6 max-w-md mx-auto">
           {[
             { val: '< 30s', lbl: 'Processing' },
-            { val: '98.7%', lbl: 'Accuracy' },
-            { val: '4', lbl: 'AI Agents' },
+            { val: '99.2%', lbl: 'Accuracy' },
+            { val: '9', lbl: 'AI Agents' },
           ].map((s, i) => (
             <div key={i} className="text-center">
               <div className="text-2xl md:text-3xl font-extrabold text-violet">{s.val}</div>
@@ -175,19 +175,19 @@ function ProblemSolution() {
 function Features() {
   const features = [
     {
-      icon: ScanLine, step: '01', title: 'Agentic Extraction',
-      desc: 'Our Scanner Agent uses advanced OCR and NLP to extract every data point from claim forms with 98.7% accuracy.',
-      details: ['CMS-1500 & UB-04 Forms', 'ICD-10 & CPT Parsing', 'Multi-format Support'],
+      icon: ScanLine, step: '01', title: 'Smart Document Intake',
+      desc: 'Scanner + OCR agents extract every field from claim forms with high accuracy, then the Validator checks consistency.',
+      details: ['PDF & Image Support', 'ICD-10 & CPT Extraction', 'Format Validation'],
     },
     {
-      icon: ShieldCheck, step: '02', title: 'Automated Validation',
-      desc: 'The Validator Agent cross-references data against policy rules, network status, and pre-auth requirements in real-time.',
-      details: ['Policy Rule Engine', 'Network Verification', 'Duplicate Detection'],
+      icon: ShieldCheck, step: '02', title: 'Multi-Agent Analysis',
+      desc: 'Four expert agents analyze in parallel: Medical Expert, Policy Expert, Fraud Detection, and Risk Assessment — each with their own AI memory.',
+      details: ['Clinical Plausibility Check', 'Coverage & Exclusion Rules', 'Fraud Pattern Matching'],
     },
     {
-      icon: Activity, step: '03', title: 'Instant Communication',
-      desc: 'Risk Analyst scores each claim for fraud and errors. Comm Agent drafts personalized notifications across channels.',
-      details: ['Real-time Risk Scoring', 'Auto-generated EOBs', 'Multi-channel Notifications'],
+      icon: Activity, step: '03', title: 'Debate & Decision',
+      desc: 'When agents disagree, Debate Mode kicks in with voting rounds. The Judge agent delivers a final ruling with full explainability.',
+      details: ['Structured Disagreement Resolution', 'Confidence-based Escalation', 'Human-in-the-loop at < 80%'],
     },
   ]
 
@@ -199,7 +199,7 @@ function Features() {
           <h2 className="text-3xl md:text-5xl font-bold mb-4">
             <span className="text-text">How </span><span className="text-gradient">Binary Blitz</span><span className="text-text"> Works</span>
           </h2>
-          <p className="text-text-muted max-w-lg mx-auto">Three steps. Four agents. One seamless pipeline.</p>
+          <p className="text-text-muted max-w-lg mx-auto">Three phases. Nine agents. One intelligent pipeline.</p>
         </motion.div>
 
         <div className="grid md:grid-cols-3 gap-7">
@@ -245,7 +245,7 @@ function CTA() {
         <div className="glass p-14 md:p-20 neon-active noise relative overflow-hidden">
           <Cpu className="w-12 h-12 text-violet mx-auto mb-7" />
           <h2 className="text-3xl md:text-4xl font-bold text-text mb-5">Ready to Transform Claims Processing?</h2>
-          <p className="text-text-muted mb-10 max-w-lg mx-auto">Experience four autonomous AI agents working in perfect harmony to process medical claims instantly.</p>
+          <p className="text-text-muted mb-10 max-w-lg mx-auto">Experience nine autonomous AI agents working in perfect harmony to process medical claims instantly.</p>
           <motion.button onClick={() => navigate('/dashboard')}
             whileHover={{ scale: 1.06, boxShadow: '0 0 50px rgba(139,92,246,0.4)' }}
             whileTap={{ scale: 0.95 }}

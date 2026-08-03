@@ -27,10 +27,12 @@ export default function OutputSection({ results }) {
     { id: 'email', label: 'Email Draft', Icon: Mail },
     { id: 'whatsapp', label: 'WhatsApp', Icon: Phone },
     { id: 'summary', label: 'Claim Summary', Icon: FileText },
+    { id: 'agents', label: 'Agent Findings', Icon: FileText },
   ]
 
   const content = tab === 'email' ? results.email :
                   tab === 'whatsapp' ? results.whatsapp :
+                  tab === 'agents' ? JSON.stringify(results.findings, null, 2) :
                   JSON.stringify(results.claimData, null, 2)
 
   return (
@@ -101,6 +103,32 @@ export default function OutputSection({ results }) {
               <div><span className="text-[11px] text-text-dim">Recommendation</span><div className="text-sm font-bold text-success">{results.recommendation}</div></div>
               <div className="text-right"><span className="text-[11px] text-text-dim">Risk Score</span><div className="text-sm font-bold text-success">{results.riskScore} ({results.riskLabel})</div></div>
             </div>
+          </motion.div>
+        )}
+
+        {tab === 'agents' && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2">
+            {(results.findings || []).map((f, i) => (
+              <div key={i} className={`flex items-start gap-3 p-3 rounded-xl border ${
+                f.verdict === 'approve' ? 'border-success/20 bg-success/5' :
+                f.verdict === 'reject' ? 'border-danger/20 bg-danger/5' :
+                'border-warning/20 bg-warning/5'}`}>
+                <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${
+                  f.verdict === 'approve' ? 'bg-success' :
+                  f.verdict === 'reject' ? 'bg-danger' : 'bg-warning'}`} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs font-bold text-text capitalize">{f.agent.replace('_', ' ')}</span>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${
+                      f.verdict === 'approve' ? 'bg-success/10 text-success' :
+                      f.verdict === 'reject' ? 'bg-danger/10 text-danger' :
+                      'bg-warning/10 text-warning'}`}>{f.verdict.toUpperCase()}</span>
+                    <span className="text-[10px] text-text-dim">conf: {(f.confidence * 100).toFixed(0)}%</span>
+                  </div>
+                  <p className="text-[11px] text-text-dim leading-relaxed truncate">{f.reasoning}</p>
+                </div>
+              </div>
+            ))}
           </motion.div>
         )}
       </div>

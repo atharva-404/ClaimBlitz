@@ -43,7 +43,7 @@ function AgentCard({ agent, index }) {
                 ? <CheckCircle2 className={`w-5 h-5 ${cfg.color}`} />
                 : <AgentIcon className={`w-5 h-5 ${cfg.color}`} />}
           </div>
-          {index < 3 && (
+          {index < 7 && (
             <div className={`absolute -bottom-4 w-px h-4 ${
               agent.status === 'completed' ? 'bg-success/40' : 'bg-border'}`} />
           )}
@@ -112,7 +112,7 @@ export default function AgentStepper({ agents, currentStep }) {
         </div>
         <div>
           <h2 className="font-bold text-text text-sm">Agent Command Center</h2>
-          <p className="text-[11px] text-text-dim">4-agent autonomous pipeline</p>
+          <p className="text-[11px] text-text-dim">9-agent collaborative pipeline</p>
         </div>
       </div>
       <div className="space-y-3">
