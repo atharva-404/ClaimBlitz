@@ -1,22 +1,39 @@
 import React, { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Mail, Phone, Copy, Check, Send, FileText } from 'lucide-react'
+import { Mail, Phone, Copy, Check, Send, FileText, ClipboardList } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { Card, Button, Badge, SectionHeader, DescriptionList } from './ui'
 
-function CopyBtn({ text }) {
+function CopyButton({ text }) {
   const [ok, setOk] = useState(false)
   const copy = async () => {
-    try { await navigator.clipboard.writeText(text); setOk(true); setTimeout(() => setOk(false), 2000) }
-    catch (e) { console.error(e) }
+    try {
+      await navigator.clipboard.writeText(text)
+      setOk(true)
+      setTimeout(() => setOk(false), 2000)
+    } catch (e) {
+      console.error(e)
+    }
   }
   return (
-    <motion.button onClick={copy} whileTap={{ scale: 0.93 }}
-      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
-        ok ? 'bg-success/8 border border-success/25 text-success' :
-        'bg-card-solid/60 border border-border text-text-dim hover:border-violet/30 hover:text-violet'}`}>
-      {ok ? <><Check className="w-3.5 h-3.5" />Copied!</> : <><Copy className="w-3.5 h-3.5" />Copy</>}
-    </motion.button>
+    <Button variant={ok ? 'secondary' : 'secondary'} size="sm" onClick={copy}>
+      {ok ? <><Check className="h-3.5 w-3.5 text-success" />Copied</> : <><Copy className="h-3.5 w-3.5" />Copy</>}
+    </Button>
   )
+}
+
+const VERDICT_BADGE = { approve: 'success', reject: 'error', flag: 'warning' }
+
+function formatFieldValue(key, value) {
+  const k = key.toLowerCase()
+  if (typeof value === 'number' && (k.includes('amount') || k.includes('billed') || k.includes('responsibility'))) {
+    return `$${value.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+  }
+  return String(value)
+}
+
+function labelize(key) {
+  return key.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase()).trim()
 }
 
 export default function OutputSection({ results }) {
@@ -24,114 +41,114 @@ export default function OutputSection({ results }) {
   const navigate = useNavigate()
 
   const tabs = [
-    { id: 'email', label: 'Email Draft', Icon: Mail },
+    { id: 'email', label: 'Email', Icon: Mail },
     { id: 'whatsapp', label: 'WhatsApp', Icon: Phone },
-    { id: 'summary', label: 'Claim Summary', Icon: FileText },
-    { id: 'agents', label: 'Agent Findings', Icon: FileText },
+    { id: 'summary', label: 'Summary', Icon: FileText },
+    { id: 'agents', label: 'Findings', Icon: ClipboardList },
   ]
 
-  const content = tab === 'email' ? results.email :
-                  tab === 'whatsapp' ? results.whatsapp :
-                  tab === 'agents' ? JSON.stringify(results.findings, null, 2) :
-                  JSON.stringify(results.claimData, null, 2)
+  const copyText =
+    tab === 'email' ? results.email :
+    tab === 'whatsapp' ? results.whatsapp :
+    tab === 'agents' ? JSON.stringify(results.findings, null, 2) :
+    JSON.stringify(results.claimData, null, 2)
+
+  const recBadge =
+    results.recommendation === 'APPROVE' ? 'success' :
+    results.recommendation === 'REJECT' ? 'error' : 'warning'
 
   return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay: 0.2, ease: [0.16, 1, 0.3, 1] }} className="glass overflow-hidden">
-
+    <Card className="overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-violet-dim flex items-center justify-center">
-            <Send className="w-4 h-4 text-violet" />
-          </div>
-          <div>
-            <h2 className="font-bold text-text text-sm">Actionable Output</h2>
-            <p className="text-[11px] text-text-dim">Auto-drafted communications</p>
-          </div>
-        </div>
+      <div className="flex items-center justify-between border-b border-default px-5 py-4">
+        <SectionHeader icon={Send} title="Generated outputs" description="Ready-to-send deliverables" />
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => navigate('/submission')}
-            className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-violet-dim border border-violet/30 text-violet hover:opacity-90 transition-all cursor-pointer"
-          >
-            Submit Claim
-          </button>
-          <CopyBtn text={content} />
+          <CopyButton text={copyText} />
+          <Button variant="primary" size="sm" onClick={() => navigate('/submission')}>
+            Submit claim
+          </Button>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-border overflow-x-auto">
-        {tabs.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)}
-            className={`shrink-0 flex items-center gap-2 px-4 py-3 text-xs font-medium transition-all relative cursor-pointer ${
-              tab === t.id ? 'text-violet' : 'text-text-dim hover:text-text'}`}>
-            <t.Icon className="w-3.5 h-3.5" />{t.label}
+      <div className="flex overflow-x-auto border-b border-default" role="tablist">
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            role="tab"
+            aria-selected={tab === t.id}
+            onClick={() => setTab(t.id)}
+            className={`relative flex shrink-0 items-center gap-2 px-4 py-3 text-sm font-medium transition-colors cursor-pointer ${
+              tab === t.id ? 'text-brand' : 'text-secondary hover:text-primary'
+            }`}
+          >
+            <t.Icon className="h-4 w-4" />
+            {t.label}
             {tab === t.id && (
-              <motion.div layoutId="tab-indicator"
-                className="absolute bottom-0 left-0 right-0 h-0.5 bg-violet rounded-full"
-                transition={{ duration: 0.25 }} />
+              <motion.span
+                layoutId="output-tab-indicator"
+                className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-brand"
+                transition={{ duration: 0.2 }}
+              />
             )}
           </button>
         ))}
       </div>
 
       {/* Content */}
-      <div className="p-4 sm:p-5 max-h-[280px] overflow-y-auto">
+      <div className="max-h-[320px] overflow-y-auto p-5">
         {(tab === 'email' || tab === 'whatsapp') && (
-          <motion.div key={tab} initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-            className="bg-[#080D1B] rounded-xl p-4 border border-white/[0.04]">
-            <pre className="text-xs text-text-dim/70 whitespace-pre-wrap font-mono leading-relaxed">
+          <div className="rounded-md border border-default bg-subtle p-4">
+            <pre className="whitespace-pre-wrap font-mono text-xs leading-relaxed text-secondary">
               {tab === 'email' ? results.email : results.whatsapp}
             </pre>
-          </motion.div>
+          </div>
         )}
 
         {tab === 'summary' && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2.5">
-            {Object.entries(results.claimData).map(([key, value]) => (
-              <div key={key} className="flex justify-between items-center py-2 border-b border-white/[0.04] last:border-0">
-                <span className="text-xs text-text-dim capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
-                <span className="text-xs text-text font-medium font-mono">
-                  {typeof value === 'number' && (key.toLowerCase().includes('amount') || key.toLowerCase().includes('billed') || key.toLowerCase().includes('responsibility'))
-                    ? `$${value.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : String(value)}
-                </span>
+          <div>
+            <DescriptionList
+              items={Object.entries(results.claimData).map(([key, value]) => ({
+                label: labelize(key),
+                value: formatFieldValue(key, value),
+              }))}
+            />
+            <div className="mt-4 flex items-center justify-between rounded-md border border-default bg-subtle p-4">
+              <div>
+                <div className="text-xs text-secondary">Recommendation</div>
+                <Badge variant={recBadge} className="mt-1">{results.recommendation}</Badge>
               </div>
-            ))}
-            <div className="mt-4 pt-4 border-t border-white/[0.08] flex items-center justify-between">
-              <div><span className="text-[11px] text-text-dim">Recommendation</span><div className="text-sm font-bold text-success">{results.recommendation}</div></div>
-              <div className="text-right"><span className="text-[11px] text-text-dim">Risk Score</span><div className="text-sm font-bold text-success">{results.riskScore} ({results.riskLabel})</div></div>
+              <div className="text-right">
+                <div className="text-xs text-secondary">Risk score</div>
+                <div className="mt-1 text-sm font-semibold text-primary">
+                  {results.riskScore} <span className="text-secondary">({results.riskLabel})</span>
+                </div>
+              </div>
             </div>
-          </motion.div>
+          </div>
         )}
 
         {tab === 'agents' && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2">
+          <div className="space-y-2">
             {(results.findings || []).map((f, i) => (
-              <div key={i} className={`flex items-start gap-3 p-3 rounded-xl border ${
-                f.verdict === 'approve' ? 'border-success/20 bg-success/5' :
-                f.verdict === 'reject' ? 'border-danger/20 bg-danger/5' :
-                'border-warning/20 bg-warning/5'}`}>
-                <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${
-                  f.verdict === 'approve' ? 'bg-success' :
-                  f.verdict === 'reject' ? 'bg-danger' : 'bg-warning'}`} />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-bold text-text capitalize">{f.agent.replace('_', ' ')}</span>
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${
-                      f.verdict === 'approve' ? 'bg-success/10 text-success' :
-                      f.verdict === 'reject' ? 'bg-danger/10 text-danger' :
-                      'bg-warning/10 text-warning'}`}>{f.verdict.toUpperCase()}</span>
-                    <span className="text-[10px] text-text-dim">conf: {(f.confidence * 100).toFixed(0)}%</span>
+              <div key={i} className="flex items-start gap-3 rounded-md border border-default p-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm font-semibold capitalize text-primary">
+                      {f.agent.replace(/_/g, ' ')}
+                    </span>
+                    <Badge variant={VERDICT_BADGE[f.verdict] || 'neutral'}>
+                      {f.verdict.toUpperCase()}
+                    </Badge>
+                    <span className="text-xs text-muted">conf {(f.confidence * 100).toFixed(0)}%</span>
                   </div>
-                  <p className="text-[11px] text-text-dim leading-relaxed truncate">{f.reasoning}</p>
+                  <p className="mt-1 text-xs leading-relaxed text-secondary">{f.reasoning}</p>
                 </div>
               </div>
             ))}
-          </motion.div>
+          </div>
         )}
       </div>
-    </motion.div>
+    </Card>
   )
 }
