@@ -11,11 +11,11 @@ import { useClaimAgent, AGENT_STEPS } from '../useClaimAgent'
 
 describe('useClaimAgent hook - State Structure', () => {
   it('should export correct AGENT_STEPS', () => {
-    expect(AGENT_STEPS).toHaveLength(4)
+    expect(AGENT_STEPS).toHaveLength(8)
     expect(AGENT_STEPS[0].name).toBe('Scanner Agent')
-    expect(AGENT_STEPS[1].name).toBe('Validator Agent')
-    expect(AGENT_STEPS[2].name).toBe('Risk Analyst')
-    expect(AGENT_STEPS[3].name).toBe('Comm Agent')
+    expect(AGENT_STEPS[1].name).toBe('OCR Agent')
+    expect(AGENT_STEPS[2].name).toBe('Validator Agent')
+    expect(AGENT_STEPS[7].name).toBe('Communication')
   })
 
   it('should have all required agent fields in AGENT_STEPS', () => {
