@@ -1,232 +1,190 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
 import {
-  Zap, Shield, Brain, ArrowRight,
-  Clock, AlertTriangle, DollarSign, CheckCircle2,
-  ScanLine, ShieldCheck, Activity,
-  Sparkles, Bot, ChevronDown, Cpu
+  ShieldCheck, ArrowRight, ScanLine, Activity, MessageSquare,
+  Clock, AlertTriangle, DollarSign, CheckCircle2, FileSearch, Gauge,
 } from 'lucide-react'
+import { Button, Card, Badge } from '../components/ui'
 
-const fadeUp = {
-  hidden: { opacity: 0, y: 50 },
-  visible: (i = 0) => ({
-    opacity: 1, y: 0,
-    transition: { delay: i * 0.12, duration: 0.7, ease: [0.16, 1, 0.3, 1] }
-  })
-}
-
-const stagger = {
-  visible: { transition: { staggerChildren: 0.12 } }
+/* ─── Navbar ─── */
+function Navbar() {
+  const navigate = useNavigate()
+  return (
+    <header className="sticky top-0 z-50 border-b border-default bg-surface/90 backdrop-blur">
+      <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3 lg:px-8">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-brand">
+            <ShieldCheck className="h-5 w-5 text-white" />
+          </div>
+          <span className="text-base font-semibold text-primary">ClaimBitz</span>
+        </div>
+        <Button variant="primary" size="sm" onClick={() => navigate('/dashboard')}>
+          Open console
+        </Button>
+      </div>
+    </header>
+  )
 }
 
 /* ─── Hero ─── */
 function Hero() {
   const navigate = useNavigate()
   return (
-    <section className="relative min-h-[100svh] pt-28 pb-16 flex items-center justify-center overflow-hidden">
-      {/* Animated orbs */}
-      <div className="orb absolute w-[500px] h-[500px] bg-violet/20 top-[-10%] left-[15%]" style={{ animationDelay: '0s' }} />
-      <div className="orb absolute w-[400px] h-[400px] bg-pink/15 bottom-[5%] right-[10%]" style={{ animationDelay: '3s' }} />
-      <div className="orb absolute w-[300px] h-[300px] bg-cyan/10 top-[40%] right-[30%]" style={{ animationDelay: '5s' }} />
-
-      {/* Grid */}
-      <div className="absolute inset-0 grid-pattern" />
-
-      {/* Radial spotlight */}
-      <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse 70% 50% at 50% 40%, rgba(139,92,246,0.09) 0%, transparent 100%)' }} />
-
-      <div className="relative z-10 max-w-5xl mx-auto px-5 sm:px-6 text-center">
-        {/* Badge */}
-        <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={0}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-violet/20 bg-violet-dim mb-10">
-          <Sparkles className="w-4 h-4 text-violet" />
-          <span className="text-sm text-violet font-semibold tracking-wide">Autonomous AI Agent System</span>
-        </motion.div>
-
-        {/* Title */}
-        <motion.h1 variants={fadeUp} initial="hidden" animate="visible" custom={1}
-          className="text-[clamp(2.6rem,9vw,5.5rem)] font-black tracking-tight leading-[1.03] mb-7">
-          <span className="text-text">Binary Blitz</span><br />
-          <span className="text-gradient">Claims at the Speed</span><br />
-          <span className="text-gradient">of Thought</span>
-        </motion.h1>
-
-        {/* Subtitle */}
-        <motion.p variants={fadeUp} initial="hidden" animate="visible" custom={2}
-          className="text-base md:text-lg text-text-muted max-w-2xl mx-auto mb-12 leading-relaxed">
-          Nine specialized AI agents collaborate to process, validate, analyze, and approve medical claims
-          in seconds — not days. Debate mode resolves disagreements. Welcome to the future of healthcare insurance.
-        </motion.p>
-
-        {/* CTA */}
-        <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={3}
-          className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16 w-full">
-          <motion.button onClick={() => navigate('/dashboard')}
-            whileHover={{ scale: 1.06, boxShadow: '0 0 40px rgba(139,92,246,0.4)' }}
-            whileTap={{ scale: 0.97 }}
-            className="group relative w-full sm:w-auto px-9 py-4 rounded-2xl font-bold text-lg text-white overflow-hidden cursor-pointer">
-            <div className="absolute inset-0 btn-shimmer" />
-            <span className="relative flex items-center gap-3">
-              <Bot className="w-5 h-5" />
-              Launch Agent System
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1.5 transition-transform" />
-            </span>
-          </motion.button>
-
-          <motion.button
+    <section className="border-b border-default bg-surface">
+      <div className="mx-auto max-w-4xl px-5 py-20 text-center lg:px-8 lg:py-28">
+        <div className="mb-6 inline-flex">
+          <Badge variant="brand">
+            <ShieldCheck className="h-3.5 w-3.5" />
+            Multi-agent claim analysis
+          </Badge>
+        </div>
+        <h1 className="text-4xl font-bold leading-tight tracking-tight text-primary sm:text-5xl">
+          Medical claim processing,<br className="hidden sm:block" /> reviewed in seconds
+        </h1>
+        <p className="mx-auto mt-5 max-w-2xl text-lg text-secondary">
+          ClaimBitz reads a claim document, validates it, checks clinical and policy rules,
+          detects fraud signals, scores rejection risk, and drafts the response — with a full,
+          auditable trail of how each decision was made.
+        </p>
+        <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <Button variant="primary" size="lg" onClick={() => navigate('/dashboard')}>
+            Launch console
+            <ArrowRight className="h-5 w-5" />
+          </Button>
+          <Button
+            variant="secondary"
+            size="lg"
             onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })}
-            whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-            className="w-full sm:w-auto px-8 py-4 rounded-2xl font-semibold text-text border border-border hover:border-violet/40 hover:bg-violet-dim transition-all cursor-pointer">
-            See How It Works <ChevronDown className="w-4 h-4 inline ml-1" />
-          </motion.button>
-        </motion.div>
+          >
+            How it works
+          </Button>
+        </div>
 
         {/* Stats */}
-        <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={4}
-          className="grid grid-cols-3 gap-6 max-w-md mx-auto">
+        <div className="mx-auto mt-14 grid max-w-2xl grid-cols-3 gap-6 border-t border-default pt-8">
           {[
-            { val: '< 30s', lbl: 'Processing' },
-            { val: '99.2%', lbl: 'Accuracy' },
-            { val: '9', lbl: 'AI Agents' },
-          ].map((s, i) => (
-            <div key={i} className="text-center">
-              <div className="text-2xl md:text-3xl font-extrabold text-violet">{s.val}</div>
-              <div className="text-xs text-text-dim mt-1 uppercase tracking-wider">{s.lbl}</div>
+            { val: 'Under 30s', lbl: 'Median processing time' },
+            { val: '98.7%', lbl: 'Validation accuracy' },
+            { val: '9 agents', lbl: 'Collaborative pipeline' },
+          ].map((s) => (
+            <div key={s.lbl}>
+              <div className="text-xl font-bold text-primary sm:text-2xl">{s.val}</div>
+              <div className="mt-1 text-xs text-secondary sm:text-sm">{s.lbl}</div>
             </div>
           ))}
-        </motion.div>
-      </div>
-
-      {/* Scroll hint */}
-      <motion.div className="absolute bottom-8 left-1/2 -translate-x-1/2"
-        animate={{ y: [0, 12, 0] }} transition={{ duration: 2.5, repeat: Infinity }}>
-        <ChevronDown className="w-6 h-6 text-violet/30" />
-      </motion.div>
-    </section>
-  )
-}
-
-/* ─── Problem vs Solution ─── */
-function ProblemSolution() {
-  const problems = [
-    { icon: Clock, text: 'Claims take 30–90 days to process' },
-    { icon: AlertTriangle, text: 'Manual review causes 20% error rate' },
-    { icon: DollarSign, text: '$262B lost annually to improper payments' },
-  ]
-  const solutions = [
-    { icon: Zap, text: 'AI processes claims in under 30 seconds' },
-    { icon: Shield, text: '98.7% accuracy with automated validation' },
-    { icon: Brain, text: 'Real-time fraud detection & risk scoring' },
-  ]
-
-  return (
-    <section className="py-28 px-6 relative">
-      <div className="max-w-6xl mx-auto">
-        <motion.div variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} className="text-center mb-16">
-          <h2 className="text-3xl md:text-5xl font-bold mb-4">
-            <span className="text-text">The Problem We </span><span className="text-danger">Crush</span>
-          </h2>
-          <p className="text-text-muted max-w-xl mx-auto">Traditional claims processing is broken. We rebuilt it from the ground up.</p>
-        </motion.div>
-
-        <div className="grid md:grid-cols-2 gap-10 relative">
-          {/* Center divider */}
-          <div className="hidden md:block absolute left-1/2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-violet/25 to-transparent -translate-x-1/2" />
-
-          {/* Problems */}
-          <motion.div variants={stagger} initial="hidden" whileInView="visible" viewport={{ once: true }} className="space-y-4">
-            <div className="flex items-center gap-3 mb-5">
-              <div className="w-3 h-3 rounded-full bg-danger" />
-              <h3 className="text-lg font-bold text-danger">Today's Reality</h3>
-            </div>
-            {problems.map((p, i) => (
-              <motion.div key={i} variants={fadeUp} className="glass p-5 flex items-center gap-4 group" style={{ borderColor: 'rgba(251,113,133,0.1)' }}>
-                <div className="w-11 h-11 rounded-xl bg-danger/10 flex items-center justify-center shrink-0">
-                  <p.icon className="w-5 h-5 text-danger" />
-                </div>
-                <p className="text-text-muted group-hover:text-text transition-colors text-sm">{p.text}</p>
-              </motion.div>
-            ))}
-          </motion.div>
-
-          {/* Solutions */}
-          <motion.div variants={stagger} initial="hidden" whileInView="visible" viewport={{ once: true }} className="space-y-4">
-            <div className="flex items-center gap-3 mb-5">
-              <div className="w-3 h-3 rounded-full bg-violet" />
-              <h3 className="text-lg font-bold text-violet">Binary Blitz Solution</h3>
-            </div>
-            {solutions.map((s, i) => (
-              <motion.div key={i} variants={fadeUp} className="glass neon-active p-5 flex items-center gap-4 group">
-                <div className="w-11 h-11 rounded-xl bg-violet-dim flex items-center justify-center shrink-0">
-                  <s.icon className="w-5 h-5 text-violet" />
-                </div>
-                <p className="text-text font-medium text-sm">{s.text}</p>
-              </motion.div>
-            ))}
-          </motion.div>
         </div>
       </div>
     </section>
   )
 }
 
-/* ─── Features / How It Works ─── */
-function Features() {
-  const features = [
-    {
-      icon: ScanLine, step: '01', title: 'Smart Document Intake',
-      desc: 'Scanner + OCR agents extract every field from claim forms with high accuracy, then the Validator checks consistency.',
-      details: ['PDF & Image Support', 'ICD-10 & CPT Extraction', 'Format Validation'],
-    },
-    {
-      icon: ShieldCheck, step: '02', title: 'Multi-Agent Analysis',
-      desc: 'Four expert agents analyze in parallel: Medical Expert, Policy Expert, Fraud Detection, and Risk Assessment — each with their own AI memory.',
-      details: ['Clinical Plausibility Check', 'Coverage & Exclusion Rules', 'Fraud Pattern Matching'],
-    },
-    {
-      icon: Activity, step: '03', title: 'Debate & Decision',
-      desc: 'When agents disagree, Debate Mode kicks in with voting rounds. The Judge agent delivers a final ruling with full explainability.',
-      details: ['Structured Disagreement Resolution', 'Confidence-based Escalation', 'Human-in-the-loop at < 80%'],
-    },
+/* ─── Capabilities ─── */
+function Capabilities() {
+  const items = [
+    { icon: FileSearch, title: 'Automated intake', desc: 'Scanner and OCR agents extract every field from PDFs and images, then validate format and consistency.' },
+    { icon: Activity, title: 'AI-assisted analysis', desc: 'Medical, policy, and fraud specialists review each claim in parallel against clinical and coverage rules.' },
+    { icon: Gauge, title: 'Risk detection', desc: 'A calibrated risk score and category surface rejection likelihood before the claim is submitted.' },
+    { icon: MessageSquare, title: 'Actionable outputs', desc: 'Ready-to-send email and messaging drafts, a claim summary, and per-agent findings — all in one place.' },
   ]
-
   return (
-    <section id="how-it-works" className="py-28 px-6 relative">
-      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-violet/20 to-transparent" />
-      <div className="max-w-6xl mx-auto">
-        <motion.div variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} className="text-center mb-16">
-          <h2 className="text-3xl md:text-5xl font-bold mb-4">
-            <span className="text-text">How </span><span className="text-gradient">Binary Blitz</span><span className="text-text"> Works</span>
+    <section className="bg-canvas">
+      <div className="mx-auto max-w-6xl px-5 py-20 lg:px-8">
+        <div className="mb-12 max-w-2xl">
+          <h2 className="text-2xl font-bold tracking-tight text-primary sm:text-3xl">
+            Built for claims operations
           </h2>
-          <p className="text-text-muted max-w-lg mx-auto">Three phases. Nine agents. One intelligent pipeline.</p>
-        </motion.div>
-
-        <div className="grid md:grid-cols-3 gap-7">
-          {features.map((f, i) => (
-            <motion.div key={i} custom={i} variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
-              whileHover={{ y: -10, transition: { duration: 0.3 } }}
-              className="glass p-8 group relative overflow-hidden">
-              {/* Big step bg */}
-              <div className="absolute -top-4 right-2 text-[118px] font-black text-violet/[0.04] leading-none select-none pointer-events-none">{f.step}</div>
-
-              <div className="w-14 h-14 rounded-2xl bg-violet-dim flex items-center justify-center mb-6 group-hover:bg-violet/20 transition-colors relative">
-                <f.icon className="w-7 h-7 text-violet" />
+          <p className="mt-3 text-secondary">
+            Every step is explainable and auditable, so reviewers stay in control of the decision.
+          </p>
+        </div>
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {items.map((it) => (
+            <Card key={it.title} className="p-5">
+              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-brand-subtle">
+                <it.icon className="h-5 w-5 text-brand" />
               </div>
+              <h3 className="mt-4 text-base font-semibold text-primary">{it.title}</h3>
+              <p className="mt-1.5 text-sm leading-relaxed text-secondary">{it.desc}</p>
+            </Card>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
 
-              <div className="text-[10px] font-mono text-text-dim mb-2 tracking-[0.2em] uppercase">Step {f.step}</div>
-              <h3 className="text-xl font-bold text-text mb-3">{f.title}</h3>
-              <p className="text-text-muted text-sm leading-relaxed mb-5">{f.desc}</p>
+/* ─── Problem / solution ─── */
+function ProblemSolution() {
+  const problems = [
+    { icon: Clock, text: 'Claims take 30–90 days to process' },
+    { icon: AlertTriangle, text: 'Manual review drives a high error rate' },
+    { icon: DollarSign, text: 'Billions lost annually to improper payments' },
+  ]
+  const solutions = [
+    { text: 'Documents processed in under 30 seconds' },
+    { text: '98.7% accuracy with automated validation' },
+    { text: 'Real-time fraud detection and risk scoring' },
+  ]
+  return (
+    <section className="border-y border-default bg-surface">
+      <div className="mx-auto grid max-w-6xl gap-10 px-5 py-20 md:grid-cols-2 lg:px-8">
+        <div>
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-muted">Today's reality</h3>
+          <ul className="mt-5 space-y-3">
+            {problems.map((p, i) => (
+              <li key={i} className="flex items-center gap-3 rounded-lg border border-default bg-canvas p-4">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-error-subtle">
+                  <p.icon className="h-4 w-4 text-error" />
+                </span>
+                <span className="text-sm text-secondary">{p.text}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div>
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-brand">With ClaimBitz</h3>
+          <ul className="mt-5 space-y-3">
+            {solutions.map((s, i) => (
+              <li key={i} className="flex items-center gap-3 rounded-lg border border-default bg-canvas p-4">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-success-subtle">
+                  <CheckCircle2 className="h-4 w-4 text-success" />
+                </span>
+                <span className="text-sm font-medium text-primary">{s.text}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </section>
+  )
+}
 
-              <ul className="space-y-2.5">
-                {f.details.map((d, j) => (
-                  <li key={j} className="flex items-center gap-2.5 text-sm">
-                    <CheckCircle2 className="w-4 h-4 text-violet/50 shrink-0" />
-                    <span className="text-text-muted">{d}</span>
-                  </li>
-                ))}
-              </ul>
-            </motion.div>
+/* ─── How it works ─── */
+function HowItWorks() {
+  const steps = [
+    { icon: ScanLine, step: '01', title: 'Intake & extraction', desc: 'Scanner, OCR, and Validator agents ingest the document and structure every field.' },
+    { icon: Activity, step: '02', title: 'Parallel analysis', desc: 'Medical, Policy, Fraud, and Risk agents review the claim concurrently, each with its own memory.' },
+    { icon: ShieldCheck, step: '03', title: 'Decision & output', desc: 'On disagreement, a debate round and Judge ruling resolve the outcome, then communications are drafted.' },
+  ]
+  return (
+    <section id="how-it-works" className="bg-canvas">
+      <div className="mx-auto max-w-6xl px-5 py-20 lg:px-8">
+        <div className="mb-12 max-w-2xl">
+          <h2 className="text-2xl font-bold tracking-tight text-primary sm:text-3xl">How it works</h2>
+          <p className="mt-3 text-secondary">Three phases. Nine agents. One auditable pipeline.</p>
+        </div>
+        <div className="grid gap-5 md:grid-cols-3">
+          {steps.map((f) => (
+            <Card key={f.step} className="p-6">
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-md bg-brand-subtle">
+                  <f.icon className="h-5 w-5 text-brand" />
+                </span>
+                <span className="font-mono text-sm font-semibold text-muted">{f.step}</span>
+              </div>
+              <h3 className="mt-4 text-lg font-semibold text-primary">{f.title}</h3>
+              <p className="mt-1.5 text-sm leading-relaxed text-secondary">{f.desc}</p>
+            </Card>
           ))}
         </div>
       </div>
@@ -238,73 +196,42 @@ function Features() {
 function CTA() {
   const navigate = useNavigate()
   return (
-    <section className="py-28 px-6 relative">
-      <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse 60% 50% at 50% 50%, rgba(139,92,246,0.06) 0%, transparent 100%)' }} />
-      <motion.div variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
-        className="max-w-3xl mx-auto text-center relative z-10">
-        <div className="glass p-14 md:p-20 neon-active noise relative overflow-hidden">
-          <Cpu className="w-12 h-12 text-violet mx-auto mb-7" />
-          <h2 className="text-3xl md:text-4xl font-bold text-text mb-5">Ready to Transform Claims Processing?</h2>
-          <p className="text-text-muted mb-10 max-w-lg mx-auto">Experience nine autonomous AI agents working in perfect harmony to process medical claims instantly.</p>
-          <motion.button onClick={() => navigate('/dashboard')}
-            whileHover={{ scale: 1.06, boxShadow: '0 0 50px rgba(139,92,246,0.4)' }}
-            whileTap={{ scale: 0.95 }}
-            className="group relative px-10 py-5 rounded-2xl font-bold text-lg text-white overflow-hidden glow-pulse cursor-pointer">
-            <div className="absolute inset-0 btn-shimmer" />
-            <span className="relative flex items-center gap-3">
-              <Bot className="w-6 h-6" />
-              Launch Agent System
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-2 transition-transform" />
-            </span>
-          </motion.button>
-        </div>
-      </motion.div>
-    </section>
-  )
-}
-
-/* ─── Navbar ─── */
-function Navbar() {
-  const navigate = useNavigate()
-  return (
-    <motion.nav initial={{ y: -30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.6 }}
-      className="fixed top-2 sm:top-0 left-0 right-0 z-50 px-3 sm:px-4 py-3">
-      <div className="max-w-6xl mx-auto glass px-4 sm:px-5 py-3 flex items-center justify-between gap-3" style={{ borderRadius: '14px' }}>
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-violet-dim flex items-center justify-center">
-            <Zap className="w-5 h-5 text-violet" />
-          </div>
-          <span className="font-bold text-base sm:text-lg text-text tracking-tight">Binary Blitz</span>
-        </div>
-        <motion.button onClick={() => navigate('/dashboard')}
-          whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-          className="px-4 sm:px-5 py-2 rounded-xl bg-violet-dim border border-violet/25 text-violet text-sm font-semibold hover:bg-violet/20 transition-colors cursor-pointer">
-          Open Dashboard
-        </motion.button>
+    <section className="border-t border-default bg-surface">
+      <div className="mx-auto max-w-3xl px-5 py-20 text-center lg:px-8">
+        <h2 className="text-2xl font-bold tracking-tight text-primary sm:text-3xl">
+          Ready to review claims faster?
+        </h2>
+        <p className="mx-auto mt-3 max-w-xl text-secondary">
+          Open the console and run a claim through the full multi-agent pipeline.
+        </p>
+        <Button variant="primary" size="lg" className="mt-8" onClick={() => navigate('/dashboard')}>
+          Launch console
+          <ArrowRight className="h-5 w-5" />
+        </Button>
       </div>
-    </motion.nav>
+    </section>
   )
 }
 
 /* ─── Page ─── */
 export default function LandingPage() {
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }}
-      className="min-h-screen bg-base overflow-x-clip">
+    <div className="min-h-screen bg-canvas">
       <Navbar />
       <Hero />
+      <Capabilities />
       <ProblemSolution />
-      <Features />
+      <HowItWorks />
       <CTA />
-      <footer className="py-8 px-6 border-t border-border">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="flex items-center gap-2 text-text-dim text-sm">
-            <Zap className="w-4 h-4 text-violet" />
-            <span>Binary Blitz © 2026 — Built for DYP Hackathon</span>
+      <footer className="border-t border-default bg-surface">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-5 py-8 text-sm text-muted md:flex-row lg:px-8">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4 text-brand" />
+            <span>ClaimBitz © 2026</span>
           </div>
-          <div className="text-sm text-text-dim/50">Autonomous Medical Claim Agent System</div>
+          <span>Multi-agent medical claim processing</span>
         </div>
       </footer>
-    </motion.div>
+    </div>
   )
 }
