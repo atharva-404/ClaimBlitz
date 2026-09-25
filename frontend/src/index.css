@@ -1,29 +1,60 @@
 @import "tailwindcss";
 
-/* ===== Custom Theme — Midnight Aurora ===== */
+/* =============================================================================
+   ClaimBitz Design System — light-first, professional B2B SaaS
+   Tokens are exposed to Tailwind v4 via @theme so utilities like
+   bg-surface, text-primary, border-default, rounded-lg, shadow-md work.
+   ============================================================================= */
 @theme {
-  --color-base: #060B18;
-  --color-base-light: #0C1228;
-  --color-card: rgba(15, 23, 55, 0.75);
-  --color-card-solid: #0F1737;
-  --color-violet: #8B5CF6;
-  --color-violet-dim: rgba(139, 92, 246, 0.12);
-  --color-violet-glow: rgba(139, 92, 246, 0.35);
-  --color-cyan: #22D3EE;
-  --color-cyan-dim: rgba(34, 211, 238, 0.12);
-  --color-pink: #EC4899;
-  --color-text: #E0E7FF;
-  --color-text-muted: #818CF8;
-  --color-text-dim: #6366A0;
-  --color-danger: #FB7185;
-  --color-success: #4ADE80;
-  --color-warning: #FACC15;
-  --color-border: rgba(139, 92, 246, 0.12);
-  --color-border-active: rgba(139, 92, 246, 0.5);
+  /* -- Color: surfaces & text -- */
+  --color-canvas: #F7F8FA;        /* app background */
+  --color-surface: #FFFFFF;       /* cards, panels */
+  --color-elevated: #FFFFFF;      /* popovers, modals (paired with shadow) */
+  --color-primary: #0F172A;       /* primary text */
+  --color-secondary: #5B6472;     /* secondary text */
+  --color-muted: #8A93A2;         /* metadata / tertiary text */
+  --color-default: #E5E8EC;       /* borders / dividers */
+  --color-subtle: #F1F3F6;        /* subtle fills, hover backgrounds */
+
+  /* -- Color: brand -- */
+  --color-brand: #4F46E5;
+  --color-brand-hover: #4338CA;
+  --color-brand-subtle: #EEF0FE;
+
+  /* -- Color: semantic -- */
+  --color-success: #16A34A;
+  --color-success-subtle: #E9F7EF;
+  --color-warning: #D97706;
+  --color-warning-subtle: #FDF3E7;
+  --color-error: #DC2626;
+  --color-error-subtle: #FCECEC;
+  --color-info: #4F46E5;
+  --color-info-subtle: #EEF0FE;
+
+  /* -- Terminal (intentionally dark surface) -- */
+  --color-term-bg: #0E1220;
+  --color-term-border: #1E2436;
+
+  /* -- Radius scale -- */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 9999px;
+
+  /* -- Shadow scale (neutral only) -- */
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.06);
+  --shadow-md: 0 4px 12px rgba(16, 24, 40, 0.08);
+  --shadow-lg: 0 12px 32px rgba(16, 24, 40, 0.12);
+
+  /* -- Typography -- */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, Consolas, monospace;
 }
 
 /* ===== Base ===== */
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
@@ -36,155 +67,79 @@ body,
 #root {
   width: 100%;
   min-height: 100%;
-  overflow-x: clip;
 }
 
 body {
   margin: 0;
-  background: #060B18;
-  color: #E0E7FF;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #F7F8FA;
+  color: #0F172A;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 #root {
   min-height: 100vh;
 }
 
+/* ===== Focus visibility (accessibility) ===== */
+:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
 /* ===== Scrollbar ===== */
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
 ::-webkit-scrollbar-thumb {
-  background: rgba(139, 92, 246, 0.25);
-  border-radius: 8px;
+  background: #D3D8E0;
+  border-radius: var(--radius-full);
+  border: 2px solid transparent;
+  background-clip: content-box;
 }
-::-webkit-scrollbar-thumb:hover { background: rgba(139, 92, 246, 0.45); }
-
-/* ===== Glass Card ===== */
-.glass {
-  background: rgba(15, 23, 55, 0.65);
-  backdrop-filter: blur(20px) saturate(150%);
-  -webkit-backdrop-filter: blur(20px) saturate(150%);
-  border: 1px solid rgba(139, 92, 246, 0.1);
-  border-radius: 18px;
-  transition: border-color 0.35s ease, box-shadow 0.35s ease;
-}
-.glass:hover {
-  border-color: rgba(139, 92, 246, 0.25);
-  box-shadow: 0 0 40px rgba(139, 92, 246, 0.06);
+::-webkit-scrollbar-thumb:hover {
+  background: #B9C0CC;
+  background-clip: content-box;
 }
 
-/* ===== Neon Active State ===== */
-.neon-active {
-  border-color: rgba(139, 92, 246, 0.55) !important;
-  box-shadow:
-    0 0 15px rgba(139, 92, 246, 0.15),
-    inset 0 0 20px rgba(139, 92, 246, 0.04);
+/* ===== Terminal log line (dark surface only) ===== */
+.log-line {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.7;
 }
 
-/* ===== Pulse ===== */
-@keyframes glow-pulse {
-  0%, 100% { box-shadow: 0 0 8px rgba(139, 92, 246, 0.2); }
-  50% { box-shadow: 0 0 28px rgba(139, 92, 246, 0.55), 0 0 60px rgba(139, 92, 246, 0.15); }
+.cursor-blink::after {
+  content: '▊';
+  color: #6366F1;
+  animation: blink-cursor 1s step-end infinite;
 }
-.glow-pulse { animation: glow-pulse 2s ease-in-out infinite; }
-
-@keyframes agent-pulse {
-  0% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.08); opacity: 0.75; }
-  100% { transform: scale(1); opacity: 1; }
-}
-.agent-pulse { animation: agent-pulse 1.4s ease-in-out infinite; }
-
-/* ===== Terminal Cursor ===== */
 @keyframes blink-cursor {
   0%, 100% { opacity: 1; }
   50% { opacity: 0; }
 }
-.cursor-blink::after {
-  content: '▊';
-  color: #8B5CF6;
-  animation: blink-cursor 1s step-end infinite;
-}
 
-/* ===== Gradient Text ===== */
-.text-gradient {
-  background: linear-gradient(135deg, #8B5CF6 0%, #EC4899 50%, #22D3EE 100%);
-  background-size: 200% 200%;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  animation: gradient-flow 4s ease infinite;
-}
-@keyframes gradient-flow {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
-/* ===== Grid Background ===== */
-.grid-pattern {
-  background-image:
-    linear-gradient(rgba(139, 92, 246, 0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(139, 92, 246, 0.025) 1px, transparent 1px);
-  background-size: 64px 64px;
-}
-
-/* ===== Scan Line ===== */
-@keyframes scan-sweep {
-  0% { top: -2px; }
-  100% { top: 100%; }
-}
-.scan-line::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  width: 100%;
-  height: 2px;
-  background: linear-gradient(90deg, transparent 0%, #8B5CF6 30%, #EC4899 70%, transparent 100%);
-  box-shadow: 0 0 15px rgba(139, 92, 246, 0.6);
-  animation: scan-sweep 2.5s linear infinite;
-}
-
-/* ===== CTA Shimmer Button ===== */
-.btn-shimmer {
-  background: linear-gradient(90deg, #8B5CF6 0%, #A78BFA 25%, #EC4899 50%, #A78BFA 75%, #8B5CF6 100%);
-  background-size: 200% 100%;
-  animation: shimmer-move 3s linear infinite;
-}
-@keyframes shimmer-move {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-
-/* ===== Log Line ===== */
-.log-line {
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
-  font-size: 0.7rem;
-  line-height: 1.7;
-}
-
-/* ===== Noise Overlay (optional subtle texture) ===== */
-.noise::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  opacity: 0.015;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  pointer-events: none;
-  border-radius: inherit;
-}
-
-/* ===== Hero Orb ===== */
-@keyframes orb-float {
-  0%, 100% { transform: translateY(0) scale(1); }
-  50% { transform: translateY(-30px) scale(1.05); }
-}
-.orb {
-  border-radius: 50%;
-  filter: blur(80px);
-  animation: orb-float 8s ease-in-out infinite;
-  pointer-events: none;
+/* ===== Reduced motion: disable decorative motion, keep functional ===== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .cursor-blink::after {
+    animation: none;
+  }
 }
