@@ -1,12 +1,29 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { motion } from 'framer-motion'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, CheckCircle2, Loader2 } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, Loader2, Building2 } from 'lucide-react'
+import { Card, Badge, Input, SectionHeader, ErrorState } from '../components/ui'
 
 const insurerNameMap = {
-  aetna: 'Aetna Claim Portal Clone',
-  uhc: 'UnitedHealthcare Portal Clone',
-  bcbs: 'Blue Cross Blue Shield Clone',
+  aetna: 'Aetna Claim Portal',
+  uhc: 'UnitedHealthcare Portal',
+  bcbs: 'Blue Cross Blue Shield',
+}
+
+// Preserve backward-compatible localStorage keys written elsewhere.
+const LATEST_CLAIM_KEY = 'binaryblitz.latestClaim'
+const LAST_APP_NUMBER_KEY = 'binaryblitz.lastApplicationNumber'
+
+const FIELD_LABELS = {
+  patientName: 'Patient name',
+  policyNumber: 'Policy number',
+  dob: 'Date of birth',
+  provider: 'Provider',
+  diagnosisCode: 'Diagnosis code',
+  cptCode: 'CPT code',
+  totalBilled: 'Total billed',
+  approvedAmount: 'Approved amount',
+  patientResponsibility: 'Patient responsibility',
+  dateOfService: 'Date of service',
 }
 
 function buildApplicationNumber(prefix) {
@@ -22,7 +39,7 @@ export default function InsurerPortalPage() {
 
   const claim = useMemo(() => {
     try {
-      const raw = localStorage.getItem('binaryblitz.latestClaim')
+      const raw = localStorage.getItem(LATEST_CLAIM_KEY)
       return raw ? JSON.parse(raw) : null
     } catch {
       return null
@@ -30,16 +47,8 @@ export default function InsurerPortalPage() {
   }, [])
 
   const [form, setForm] = useState({
-    patientName: '',
-    policyNumber: '',
-    dob: '',
-    provider: '',
-    diagnosisCode: '',
-    cptCode: '',
-    totalBilled: '',
-    approvedAmount: '',
-    patientResponsibility: '',
-    dateOfService: '',
+    patientName: '', policyNumber: '', dob: '', provider: '', diagnosisCode: '',
+    cptCode: '', totalBilled: '', approvedAmount: '', patientResponsibility: '', dateOfService: '',
   })
   const [isFilling, setIsFilling] = useState(false)
   const [isComplete, setIsComplete] = useState(false)
@@ -72,10 +81,9 @@ export default function InsurerPortalPage() {
         setIsComplete(true)
         const applicationNo = buildApplicationNumber(insurerId || 'ins')
         setAppNumber(applicationNo)
-        localStorage.setItem('binaryblitz.lastApplicationNumber', applicationNo)
+        localStorage.setItem(LAST_APP_NUMBER_KEY, applicationNo)
         return
       }
-
       setForm((prev) => ({ ...prev, [current[0]]: current[1] }))
       idx += 1
     }, 260)
@@ -83,48 +91,83 @@ export default function InsurerPortalPage() {
     return () => clearInterval(timer)
   }, [claim, autoFill, insurerId])
 
+  const statusVariant = isFilling ? 'info' : isComplete ? 'success' : 'neutral'
+  const statusLabel = isFilling ? 'Auto-filling…' : isComplete ? 'Submitted' : 'Ready'
+
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen bg-base grid-pattern p-5 lg:p-8">
-      <div className="max-w-4xl mx-auto space-y-5">
-        <button onClick={() => navigate('/submission')} className="flex items-center gap-2 text-sm text-text-dim hover:text-text cursor-pointer">
-          <ArrowLeft className="w-4 h-4" /> Back to Submission Hub
+    <div className="min-h-screen bg-canvas">
+      {/* Enterprise portal header */}
+      <header className="border-b border-default bg-surface">
+        <div className="mx-auto flex max-w-4xl items-center justify-between gap-3 px-5 py-4 lg:px-8">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-md bg-brand-subtle">
+              <Building2 className="h-5 w-5 text-brand" />
+            </div>
+            <div>
+              <h1 className="text-base font-semibold text-primary">
+                {insurerNameMap[insurerId] || 'Insurer Portal'}
+              </h1>
+              <p className="text-xs text-muted">Provider claim intake</p>
+            </div>
+          </div>
+          <Badge variant={statusVariant}>
+            {isFilling ? <Loader2 className="h-3 w-3 motion-safe:animate-spin" /> : isComplete ? <CheckCircle2 className="h-3 w-3" /> : null}
+            {statusLabel}
+          </Badge>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-4xl space-y-5 px-5 py-6 lg:px-8">
+        <button
+          onClick={() => navigate('/submission')}
+          className="inline-flex items-center gap-2 text-sm text-secondary transition-colors hover:text-primary cursor-pointer"
+        >
+          <ArrowLeft className="h-4 w-4" /> Back to submission
         </button>
 
-        <div className="glass p-5">
-          <h1 className="text-xl font-bold text-text">{insurerNameMap[insurerId] || 'Insurer Portal Clone'}</h1>
-          <p className="text-sm text-text-dim mt-1">Agentic auto-fill from extracted PDF details.</p>
+        {!claim && (
+          <ErrorState
+            inline
+            title="No claim snapshot found"
+            message="Process a claim first, then reopen this portal to auto-fill."
+          />
+        )}
 
-          {!claim && (
-            <div className="mt-4 rounded-lg border border-warning/20 bg-warning/10 p-3 text-xs text-warning">
-              No local claim snapshot found. Please process a claim first.
-            </div>
-          )}
+        {claim && (
+          <Card className="p-5 sm:p-6">
+            <SectionHeader title="Claim application form" description="Fields auto-populated from extracted claim data" />
 
-          {claim && (
-            <div className="mt-5 grid sm:grid-cols-2 gap-3 text-xs text-text-dim">
-              {Object.entries(form).map(([key, value]) => (
-                <div key={key} className="rounded-lg border border-border p-3 bg-card-solid/50">
-                  <div className="capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</div>
-                  <div className="text-text font-semibold mt-1">{value || '—'}</div>
-                </div>
+            <form className="mt-5 grid gap-4 sm:grid-cols-2" onSubmit={(e) => e.preventDefault()}>
+              {Object.keys(form).map((key) => (
+                <Input
+                  key={key}
+                  label={FIELD_LABELS[key] || key}
+                  value={form[key]}
+                  readOnly
+                  placeholder="—"
+                />
               ))}
-            </div>
-          )}
-        </div>
+            </form>
+          </Card>
+        )}
 
-        <div className="glass p-4 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm text-text-dim">
-            {isFilling ? <Loader2 className="w-4 h-4 animate-spin text-violet" /> : <CheckCircle2 className="w-4 h-4 text-success" />}
-            {isFilling ? 'Agent is auto-filling portal form...' : isComplete ? 'Portal form filled successfully' : 'Ready to auto-fill'}
+        {/* Status bar */}
+        <Card className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2 text-sm text-secondary">
+            {isFilling ? (
+              <Loader2 className="h-4 w-4 text-brand motion-safe:animate-spin" />
+            ) : (
+              <CheckCircle2 className={`h-4 w-4 ${isComplete ? 'text-success' : 'text-muted'}`} />
+            )}
+            {isFilling ? 'Agent is auto-filling the portal form…' : isComplete ? 'Portal form filled successfully' : 'Ready to auto-fill'}
           </div>
-
           {isComplete && (
-            <div className="px-3 py-1.5 rounded-xl bg-success/10 border border-success/30 text-success text-sm font-semibold">
+            <div className="rounded-md border border-success/30 bg-success-subtle px-3 py-1.5 text-sm font-semibold text-success">
               Application #: {appNumber}
             </div>
           )}
-        </div>
-      </div>
-    </motion.div>
+        </Card>
+      </main>
+    </div>
   )
 }
