@@ -49,7 +49,7 @@ ClaimBlitz replaces traditional sequential claim processing (which takes 30-90 d
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  User uploads claim_form.pdf via frontend                        │
+│  User uploads claim_form.pdf via frontend                       │
 └──────────────────────────┬──────────────────────────────────────┘
                            │
                            ▼
@@ -59,38 +59,38 @@ ClaimBlitz replaces traditional sequential claim processing (which takes 30-90 d
 └──────────────────────────┬───────────────────────────────────────┘
                            │
                            ▼
-┌──────────────────────────────────────────────────────────────────┐
+┌───────────────────────────────────────────────────────────────────┐
 │  SUPERVISOR ENGINE (State Machine)                                │
-│                                                                    │
+│                                                                   │
 │  Stage 1: SCANNING                                                │
 │    └─ Scanner Agent → "Is this a valid, processable document?"    │
-│                                                                    │
+│                                                                   │
 │  Stage 2: OCR EXTRACTION                                          │
 │    └─ OCR Agent → Extract patient, diagnosis, codes, amounts      │
-│                                                                    │
+│                                                                   │
 │  Stage 3: VALIDATION                                              │
 │    └─ Validator Agent → Check formats, dates, code syntax         │
-│                                                                    │
+│                                                                   │
 │  Stage 4: PARALLEL ANALYSIS (all 4 run independently)             │
 │    ├─ Medical Expert → "Is ICD code clinically plausible?"        │
 │    ├─ Policy Expert → "Is this covered? Pre-auth needed?"         │
 │    ├─ Fraud Detection → "Duplicate? Upcoding? Pattern match?"     │
-│    └─ Risk Assessment → "Risk score: 0.15 (LOW)"                 │
-│                                                                    │
+│    └─ Risk Assessment → "Risk score: 0.15 (LOW)"                  │
+│                                                                   │
 │  Stage 5: CONSENSUS CHECK                                         │
 │    ├─ All agree? → APPROVE/REJECT                                 │
 │    └─ Disagree? → DEBATE MODE (voting rounds)                     │
 │         └─ Still unresolved? → JUDGE AGENT rules                  │
 │              └─ Confidence < 80%? → HUMAN ESCALATION              │
-│                                                                    │
+│                                                                   │
 │  Stage 6: COMMUNICATION                                           │
 │    └─ Communication Agent → Draft email + SMS for policyholder    │
-└──────────────────────────┬───────────────────────────────────────┘
+└──────────────────────────┬────────────────────────────────────────┘
                            │
                            ▼
 ┌──────────────────────────────────────────────────────────────────┐
-│  JSON Response to Frontend                                        │
-│  {claimData, riskScore, recommendation, email, findings[]}        │
+│  JSON Response to Frontend                                       │
+│  {claimData, riskScore, recommendation, email, findings[]}       │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -119,14 +119,14 @@ ClaimBlitz replaces traditional sequential claim processing (which takes 30-90 d
    └──────────────┘  └──────────────┘  └──────────────────┘
               │
               ▼
-   ┌──────────────────────────────────────────────────┐
-   │          SUPERVISOR ORCHESTRATOR                   │
-   │  ┌────┐ ┌───┐ ┌───┐ ┌───┐ ┌───┐ ┌───┐ ┌───┐   │
-   │  │Scan│→│OCR│→│Val│→│Med│ │Pol│ │Frd│ │Rsk│   │
-   │  └────┘ └───┘ └───┘ │Exp│ │Exp│ │Det│ │Ass│   │
-   │                       └─┬─┘ └─┬─┘ └─┬─┘ └─┬─┘   │
-   │                         └──┬──┘   ┌──┘     │     │
-   │                            ▼      ▼        ▼     │
+   ┌───────────────────────────────────────────────────┐
+   │          SUPERVISOR ORCHESTRATOR                  │
+   │  ┌────┐ ┌───┐ ┌───┐ ┌───┐ ┌───┐ ┌───┐ ┌───┐       │
+   │  │Scan│→│OCR│→│Val│→│Med│ │Pol│ │Frd│ │Rsk│       │
+   │  └────┘ └───┘ └───┘ │Exp│ │Exp│ │Det│ │Ass│       │
+   │                       └─┬─┘ └─┬─┘ └─┬─┘ └─┬─┘     │
+   │                         └──┬──┘   ┌──┘     │      │
+   │                            ▼      ▼        ▼      │
    │                      ┌──────────────────┐         │
    │                      │  DEBATE / JUDGE  │         │
    │                      └────────┬─────────┘         │
@@ -134,7 +134,7 @@ ClaimBlitz replaces traditional sequential claim processing (which takes 30-90 d
    │                      ┌──────────────┐             │
    │                      │ Communication│             │
    │                      └──────────────┘             │
-   └──────────────────────────────────────────────────┘
+   └───────────────────────────────────────────────────┘
 ```
 
 ---
