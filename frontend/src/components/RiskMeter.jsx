@@ -1,21 +1,26 @@
 import React from 'react'
-import { motion } from 'framer-motion'
 import { CircularProgressbar, buildStyles } from 'react-circular-progressbar'
 import 'react-circular-progressbar/dist/styles.css'
-import { Activity, TrendingDown, TrendingUp, Shield } from 'lucide-react'
+import { Gauge, TrendingDown, Activity, TrendingUp } from 'lucide-react'
+import { Card, Badge, SectionHeader, Textarea } from './ui'
 
+/* Semantic risk configuration. Colors map to design tokens. */
 function cfg(score) {
-  if (score <= 0.3) return {
-    color: '#4ADE80', trail: 'rgba(74,222,128,0.08)', glow: 'rgba(74,222,128,0.25)',
-    label: 'LOW RISK', rec: 'APPROVE', Icon: TrendingDown, text: 'text-success', bg: 'bg-success/8', border: 'border-success/25'
+  if (score <= 0.3) {
+    return {
+      color: '#16A34A', trail: '#E9F7EF',
+      label: 'Low risk', rec: 'Approve', badge: 'success', Icon: TrendingDown,
+    }
   }
-  if (score <= 0.6) return {
-    color: '#FACC15', trail: 'rgba(250,204,21,0.08)', glow: 'rgba(250,204,21,0.25)',
-    label: 'MEDIUM RISK', rec: 'REVIEW', Icon: Activity, text: 'text-warning', bg: 'bg-warning/8', border: 'border-warning/25'
+  if (score <= 0.6) {
+    return {
+      color: '#D97706', trail: '#FDF3E7',
+      label: 'Medium risk', rec: 'Review', badge: 'warning', Icon: Activity,
+    }
   }
   return {
-    color: '#FB7185', trail: 'rgba(251,113,133,0.08)', glow: 'rgba(251,113,133,0.25)',
-    label: 'HIGH RISK', rec: 'REJECT', Icon: TrendingUp, text: 'text-danger', bg: 'bg-danger/8', border: 'border-danger/25'
+    color: '#DC2626', trail: '#FCECEC',
+    label: 'High risk', rec: 'Reject', badge: 'error', Icon: TrendingUp,
   }
 }
 
@@ -24,85 +29,99 @@ export default function RiskMeter({ score, isProcessing, results }) {
   const pct = Math.round(score * 100)
   const riskReasons = results?.riskReasons || []
   const model = results?.riskModel
+  const analyzing = isProcessing && score === 0
 
   return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }} className="glass p-6">
+    <Card className="p-5">
+      <SectionHeader
+        icon={Gauge}
+        title="Rejection risk"
+        description="Model-calculated risk assessment"
+      />
 
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-9 h-9 rounded-xl bg-violet-dim flex items-center justify-center">
-          <Shield className="w-4 h-4 text-violet" />
-        </div>
-        <div>
-          <h2 className="font-bold text-text text-sm">Rejection Risk Meter</h2>
-          <p className="text-[11px] text-text-dim">AI-calculated risk assessment</p>
-        </div>
-      </div>
-
-      <div className="flex flex-col items-center">
+      <div className="mt-6 flex flex-col items-center">
         {/* Gauge */}
-        <div className="relative w-40 h-40 mb-6">
-          <div className="absolute inset-2 rounded-full blur-2xl opacity-40" style={{ backgroundColor: c.glow }} />
-          <div className="relative z-10">
-            <CircularProgressbar
-              value={isProcessing && score === 0 ? 0 : pct}
-              text={isProcessing && score === 0 ? '...' : `${pct}%`}
-              strokeWidth={7}
-              styles={buildStyles({
-                textSize: '22px',
-                textColor: c.color,
-                pathColor: c.color,
-                trailColor: c.trail,
-                pathTransitionDuration: 1.5,
-                strokeLinecap: 'round',
-              })}
-            />
-          </div>
+        <div className="h-36 w-36">
+          <CircularProgressbar
+            value={analyzing ? 0 : pct}
+            text={analyzing ? '…' : `${pct}%`}
+            strokeWidth={8}
+            styles={buildStyles({
+              textSize: '20px',
+              textColor: '#0F172A',
+              pathColor: c.color,
+              trailColor: c.trail,
+              pathTransitionDuration: 0.8,
+              strokeLinecap: 'round',
+            })}
+          />
         </div>
 
-        {/* Label */}
-        <motion.div key={c.label} initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl ${c.bg} border ${c.border} mb-3`}>
-          <c.Icon className={`w-4 h-4 ${c.text}`} />
-          <span className={`text-sm font-bold ${c.text}`}>{c.label}</span>
-        </motion.div>
+        {/* Level */}
+        <div className="mt-5 flex items-center gap-2">
+          <Badge variant={analyzing ? 'neutral' : c.badge}>
+            <c.Icon className="h-3.5 w-3.5" />
+            {analyzing ? 'Analyzing…' : c.label}
+          </Badge>
+        </div>
 
+        {/* Recommendation */}
         {!isProcessing && score > 0 && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }} className="text-center">
-            <span className="text-[11px] text-text-dim">Recommendation: </span>
-            <span className={`text-[11px] font-bold ${c.text}`}>{c.rec}</span>
-          </motion.div>
+          <p className="mt-2 text-sm text-secondary">
+            Recommendation: <span className="font-semibold text-primary">{c.rec}</span>
+          </p>
         )}
-        {isProcessing && score === 0 && (
-          <div className="text-[11px] text-text-dim animate-pulse">Analyzing risk factors...</div>
+        {analyzing && (
+          <p className="mt-2 text-sm text-secondary">Evaluating risk factors…</p>
         )}
       </div>
 
       {!isProcessing && results && (
-        <div className="mt-5 space-y-3">
-          <div className="rounded-xl border border-border bg-card-solid/50 p-3">
-            <div className="text-[11px] font-semibold text-text mb-2">Exact Risk Model</div>
-            <div className="text-[11px] text-text-dim leading-relaxed">
-              <div>Engine: {model?.engine || 'rules'}</div>
-              <div>Model: {model?.modelName || 'deterministic-rules-v1'}</div>
-              <div>Base Score: {model?.baseScore ?? 0}</div>
-              <div>Issue Penalty: {model?.issuePenaltyPerItem ?? 0} per issue (max {model?.maxIssuePenalty ?? 0})</div>
-              <div>Thresholds: LOW ≤ {model?.thresholds?.lowMax ?? 0.3}, MEDIUM ≤ {model?.thresholds?.mediumMax ?? 0.6}, HIGH &gt; {model?.thresholds?.mediumMax ?? 0.6}</div>
-            </div>
+        <div className="mt-6 space-y-4">
+          {/* Model breakdown */}
+          <div className="rounded-md border border-default bg-subtle p-4">
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Risk model</div>
+            <dl className="space-y-1.5 text-sm">
+              <div className="flex justify-between gap-4">
+                <dt className="text-secondary">Engine</dt>
+                <dd className="font-medium text-primary">{model?.engine || 'rules'}</dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-secondary">Model</dt>
+                <dd className="font-mono text-xs font-medium text-primary">{model?.modelName || 'deterministic-rules-v1'}</dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-secondary">Base score</dt>
+                <dd className="font-medium text-primary">{model?.baseScore ?? 0}</dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-secondary">Thresholds</dt>
+                <dd className="font-medium text-primary">
+                  Low ≤ {model?.thresholds?.lowMax ?? 0.3}, Med ≤ {model?.thresholds?.mediumMax ?? 0.6}
+                </dd>
+              </div>
+            </dl>
           </div>
 
+          {/* High-risk explanation */}
           {results?.riskLabel === 'HIGH' && (
-            <div className="rounded-xl border border-danger/30 bg-danger/5 p-3">
-              <div className="text-[11px] font-semibold text-danger mb-2">Why Risk Is High (Before Submission)</div>
-              <textarea
+            <div>
+              <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-error">
+                Why risk is high
+              </div>
+              <Textarea
                 readOnly
-                className="w-full min-h-[120px] rounded-lg border border-danger/20 bg-[#080D1B] p-3 text-xs text-text-dim resize-y"
-                value={riskReasons.length ? riskReasons.map((r, i) => `${i + 1}. ${r}`).join('\n') : 'No detailed reason returned by backend.'}
+                rows={5}
+                value={
+                  riskReasons.length
+                    ? riskReasons.map((r, i) => `${i + 1}. ${r}`).join('\n')
+                    : 'No detailed reason returned by backend.'
+                }
               />
             </div>
           )}
         </div>
       )}
-    </motion.div>
+    </Card>
   )
 }
