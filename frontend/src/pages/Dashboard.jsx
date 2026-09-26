@@ -1,19 +1,40 @@
 import React, { useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, ShieldCheck } from 'lucide-react'
+import { ArrowLeft, ShieldCheck, FileText } from 'lucide-react'
 import { useClaimAgent } from '../hooks/useClaimAgent'
 import RiskMeter from '../components/RiskMeter'
 import AgentStepper from '../components/AgentStepper'
 import TerminalWindow from '../components/TerminalWindow'
 import DocumentViewer from '../components/DocumentViewer'
 import OutputSection from '../components/OutputSection'
-import { Button, StatusDot, ErrorState } from '../components/ui'
+import { Button, StatusDot, Badge, ErrorState } from '../components/ui'
 
 function statusMeta({ isProcessing, isComplete }) {
   if (isProcessing) return { variant: 'warning', label: 'Processing', pulse: true }
-  if (isComplete) return { variant: 'success', label: 'Complete', pulse: false }
+  if (isComplete) return { variant: 'success', label: 'Completed', pulse: false }
   return { variant: 'neutral', label: 'Ready', pulse: false }
+}
+
+/* Derive a risk summary from available state without inventing data. */
+function riskMeta({ results, riskScore, isComplete }) {
+  if (!isComplete || !results) return null
+  const score = typeof riskScore === 'number' ? riskScore : 0
+  const pct = Math.round(score * 100)
+  const label = results.riskLabel || (score <= 0.3 ? 'LOW' : score <= 0.6 ? 'MEDIUM' : 'HIGH')
+  const variant = label === 'HIGH' ? 'error' : label === 'MEDIUM' ? 'warning' : 'success'
+  const readable = label.charAt(0) + label.slice(1).toLowerCase() + ' risk'
+  return { pct, variant, readable }
+}
+
+/* Compact labelled cell used in the claim summary strip. */
+function SummaryCell({ label, children }) {
+  return (
+    <div className="min-w-0">
+      <div className="text-xs font-medium uppercase tracking-wide text-muted">{label}</div>
+      <div className="mt-1 truncate text-sm font-semibold text-primary">{children}</div>
+    </div>
+  )
 }
 
 export default function Dashboard() {
@@ -31,6 +52,8 @@ export default function Dashboard() {
   }
 
   const status = statusMeta({ isProcessing, isComplete })
+  const risk = riskMeta({ results, riskScore, isComplete })
+  const claimLabel = uploadedFile?.name || (demoMode ? 'Sample claim (demo)' : 'No document loaded')
 
   return (
     <div className="min-h-screen w-full bg-canvas">
@@ -49,8 +72,8 @@ export default function Dashboard() {
               <ShieldCheck className="h-5 w-5 text-white" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-sm font-semibold leading-tight text-primary">ClaimBitz Console</h1>
-              <p className="text-xs text-muted">Collaborative claim analysis pipeline</p>
+              <h1 className="text-sm font-semibold leading-tight text-primary">ClaimBitz</h1>
+              <p className="text-xs text-muted">Claims Processing Workspace</p>
             </div>
           </div>
 
@@ -92,12 +115,45 @@ export default function Dashboard() {
             inline
             title="Claim processing failed"
             message={errorMessage}
-            className="mb-6"
+            className="mb-4"
           />
         )}
 
+        {/* ── Claim processing summary strip ── */}
+        <section
+          aria-label="Claim summary"
+          className="mb-6 grid grid-cols-2 gap-4 rounded-lg border border-default bg-surface px-4 py-3 sm:flex sm:items-center sm:gap-8 sm:px-5"
+        >
+          <div className="col-span-2 flex min-w-0 items-center gap-3 sm:flex-1">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-brand-subtle">
+              <FileText className="h-[18px] w-[18px] text-brand" />
+            </span>
+            <SummaryCell label="Claim">{claimLabel}</SummaryCell>
+          </div>
+
+          <div className="hidden h-8 w-px bg-default sm:block" aria-hidden="true" />
+
+          <SummaryCell label="Status">
+            <span className="inline-flex items-center gap-2">
+              <StatusDot variant={status.variant} pulse={status.pulse} />
+              {status.label}
+            </span>
+          </SummaryCell>
+
+          <div className="hidden h-8 w-px bg-default sm:block" aria-hidden="true" />
+
+          <SummaryCell label="Risk">
+            {risk ? (
+              <Badge variant={risk.variant}>{risk.pct}% · {risk.readable}</Badge>
+            ) : (
+              <span className="text-secondary">—</span>
+            )}
+          </SummaryCell>
+        </section>
+
+        {/* ── Workspace ── */}
         <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-12">
-          {/* LEFT COLUMN */}
+          {/* PRIMARY COLUMN — claim document + analysis */}
           <div className="min-w-0 space-y-6 xl:col-span-8 2xl:col-span-9">
             <DocumentViewer
               uploadedFile={uploadedFile}
@@ -127,11 +183,15 @@ export default function Dashboard() {
             </AnimatePresence>
           </div>
 
-          {/* RIGHT COLUMN */}
-          <div className="space-y-6 xl:col-span-4 2xl:col-span-3 xl:sticky xl:top-24 self-start">
+          {/* SECONDARY COLUMN — diagnostics */}
+          <aside
+            aria-label="Diagnostics"
+            className="space-y-4 xl:col-span-4 2xl:col-span-3 xl:sticky xl:top-24 self-start"
+          >
+            <h2 className="px-1 text-xs font-semibold uppercase tracking-wide text-muted">Diagnostics</h2>
             <AgentStepper agents={agents} currentStep={currentStep} demoMode={demoMode} />
             <TerminalWindow logs={terminalLogs} isProcessing={isProcessing} />
-          </div>
+          </aside>
         </div>
       </main>
 
