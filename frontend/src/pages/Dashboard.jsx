@@ -28,6 +28,22 @@ function toTimelineAgents(agents) {
   return agents.map((a) => ({ name: a.name, activity: a.description }))
 }
 
+/*
+ * Presentation-only map: which CMS-1500 regions each real agent conceptually
+ * reads. Drives the document highlight micro-interaction off the REAL active
+ * agent. It does not fabricate any claim data — only which region glows.
+ */
+const AGENT_REGIONS = {
+  scanner: [],
+  ocr: ['patient', 'provider'],
+  validator: ['patient', 'provider', 'totals'],
+  medical: ['diagnosis', 'services'],
+  policy: ['insurance'],
+  fraud: ['services', 'totals'],
+  risk: [],
+  comm: [],
+}
+
 function Stat({ label, value, muted }) {
   return (
     <div className="min-w-0">
@@ -72,6 +88,10 @@ export default function Dashboard() {
         : -1
   const activeAgent = isProcessing && currentStep >= 0 && currentStep < total ? agents[currentStep] : undefined
   const timelineAgents = toTimelineAgents(agents)
+
+  // Document region highlight follows the REAL active agent (presentation only).
+  const focusRegions = activeAgent ? (AGENT_REGIONS[activeAgent.id] || []) : []
+  const focusLabel = activeAgent ? `${activeAgent.name.split(' ')[0]} reviewing` : undefined
 
   const logState = isComplete ? 'complete' : isProcessing ? 'running' : errorMessage ? 'failed' : 'idle'
   const fileName = uploadedFile?.name || (demoMode ? 'demo-claim.pdf' : 'claim.pdf')
@@ -164,6 +184,8 @@ export default function Dashboard() {
                 hasDocument
                 claim={claim}
                 scanning={isProcessing && activeIndex <= 2}
+                focus={focusRegions}
+                focusLabel={focusLabel}
                 statusText={
                   isProcessing ? `${activeAgent?.name || 'Pipeline'} running`
                     : isComplete ? 'Verified'
