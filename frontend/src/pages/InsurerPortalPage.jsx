@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, CheckCircle2, Loader2, Building2 } from 'lucide-react'
-import { Card, Badge, Input, SectionHeader, ErrorState } from '../components/ui'
+import Input from '../components/ui/Input'
+import { cn } from '../lib/utils'
 
 const insurerNameMap = {
   aetna: 'Aetna Claim Portal',
@@ -91,73 +92,68 @@ export default function InsurerPortalPage() {
     return () => clearInterval(timer)
   }, [claim, autoFill, insurerId])
 
-  const statusVariant = isFilling ? 'info' : isComplete ? 'success' : 'neutral'
   const statusLabel = isFilling ? 'Auto-filling…' : isComplete ? 'Submitted' : 'Ready'
+  const statusTone = isFilling ? 'bg-primary-subtle text-accent-foreground' : isComplete ? 'bg-success-subtle text-success' : 'bg-surface-muted text-muted-foreground'
 
   return (
-    <div className="min-h-screen bg-canvas">
-      {/* Enterprise portal header */}
-      <header className="border-b border-default bg-surface">
-        <div className="mx-auto flex max-w-4xl items-center justify-between gap-3 px-5 py-4 lg:px-8">
+    <div className="min-h-screen bg-background">
+      <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur">
+        <div className="mx-auto flex h-16 max-w-4xl items-center justify-between gap-3 px-5 lg:px-8">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-md bg-brand-subtle">
-              <Building2 className="h-5 w-5 text-brand" />
-            </div>
+            <span className="flex h-9 w-9 items-center justify-center rounded-md bg-primary-subtle">
+              <Building2 className="h-5 w-5 text-primary" />
+            </span>
             <div>
-              <h1 className="text-base font-semibold text-foreground">
+              <h1 className="text-[15px] font-semibold leading-tight tracking-tight text-foreground">
                 {insurerNameMap[insurerId] || 'Insurer Portal'}
               </h1>
-              <p className="text-xs text-subtle-foreground">Provider claim intake</p>
+              <p className="text-xs text-muted-foreground">Provider claim intake</p>
             </div>
           </div>
-          <Badge variant={statusVariant}>
+          <span className={cn('inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold', statusTone)}>
             {isFilling ? <Loader2 className="h-3 w-3 motion-safe:animate-spin" /> : isComplete ? <CheckCircle2 className="h-3 w-3" /> : null}
             {statusLabel}
-          </Badge>
+          </span>
         </div>
       </header>
 
       <main className="mx-auto max-w-4xl space-y-5 px-5 py-6 lg:px-8">
         <button
           onClick={() => navigate('/submission')}
-          className="inline-flex items-center gap-2 text-sm text-subtle-foreground-foreground transition-colors hover:text-foreground cursor-pointer"
+          className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
         >
           <ArrowLeft className="h-4 w-4" /> Back to submission
         </button>
 
         {!claim && (
-          <ErrorState
-            inline
-            title="No claim snapshot found"
-            message="Process a claim first, then reopen this portal to auto-fill."
-          />
+          <div className="flex items-start gap-3 rounded-md border border-warning/30 bg-warning-subtle px-4 py-3" role="alert">
+            <div>
+              <p className="text-sm font-semibold text-warning">No claim snapshot found</p>
+              <p className="mt-0.5 text-sm text-warning/90">Process a claim first, then reopen this portal to auto-fill.</p>
+            </div>
+          </div>
         )}
 
         {claim && (
-          <Card className="p-5 sm:p-6">
-            <SectionHeader title="Claim application form" description="Fields auto-populated from extracted claim data" />
+          <section className="panel p-5 sm:p-6">
+            <h2 className="text-[15px] font-semibold text-foreground">Claim application form</h2>
+            <p className="mt-0.5 text-[13px] text-muted-foreground">Fields auto-populated from extracted claim data</p>
 
             <form className="mt-5 grid gap-4 sm:grid-cols-2" onSubmit={(e) => e.preventDefault()}>
               {Object.keys(form).map((key) => (
-                <Input
-                  key={key}
-                  label={FIELD_LABELS[key] || key}
-                  value={form[key]}
-                  readOnly
-                  placeholder="—"
-                />
+                <Input key={key} label={FIELD_LABELS[key] || key} value={form[key]} readOnly placeholder="—" />
               ))}
             </form>
-          </Card>
+          </section>
         )}
 
         {/* Status bar */}
-        <Card className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2 text-sm text-subtle-foreground-foreground">
+        <section className="panel flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             {isFilling ? (
-              <Loader2 className="h-4 w-4 text-brand motion-safe:animate-spin" />
+              <Loader2 className="h-4 w-4 text-primary motion-safe:animate-spin" />
             ) : (
-              <CheckCircle2 className={`h-4 w-4 ${isComplete ? 'text-success' : 'text-subtle-foreground'}`} />
+              <CheckCircle2 className={cn('h-4 w-4', isComplete ? 'text-success' : 'text-subtle-foreground')} />
             )}
             {isFilling ? 'Agent is auto-filling the portal form…' : isComplete ? 'Portal form filled successfully' : 'Ready to auto-fill'}
           </div>
@@ -166,7 +162,7 @@ export default function InsurerPortalPage() {
               Application #: {appNumber}
             </div>
           )}
-        </Card>
+        </section>
       </main>
     </div>
   )
