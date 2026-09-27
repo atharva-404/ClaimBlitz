@@ -104,10 +104,10 @@ export default function InsurerPortalPage() {
               <Building2 className="h-5 w-5 text-brand" />
             </div>
             <div>
-              <h1 className="text-base font-semibold text-primary">
+              <h1 className="text-base font-semibold text-foreground">
                 {insurerNameMap[insurerId] || 'Insurer Portal'}
               </h1>
-              <p className="text-xs text-muted">Provider claim intake</p>
+              <p className="text-xs text-subtle-foreground">Provider claim intake</p>
             </div>
           </div>
           <Badge variant={statusVariant}>
@@ -120,7 +120,7 @@ export default function InsurerPortalPage() {
       <main className="mx-auto max-w-4xl space-y-5 px-5 py-6 lg:px-8">
         <button
           onClick={() => navigate('/submission')}
-          className="inline-flex items-center gap-2 text-sm text-secondary transition-colors hover:text-primary cursor-pointer"
+          className="inline-flex items-center gap-2 text-sm text-subtle-foreground-foreground transition-colors hover:text-foreground cursor-pointer"
         >
           <ArrowLeft className="h-4 w-4" /> Back to submission
         </button>
@@ -153,11 +153,11 @@ export default function InsurerPortalPage() {
 
         {/* Status bar */}
         <Card className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2 text-sm text-secondary">
+          <div className="flex items-center gap-2 text-sm text-subtle-foreground-foreground">
             {isFilling ? (
               <Loader2 className="h-4 w-4 text-brand motion-safe:animate-spin" />
             ) : (
-              <CheckCircle2 className={`h-4 w-4 ${isComplete ? 'text-success' : 'text-muted'}`} />
+              <CheckCircle2 className={`h-4 w-4 ${isComplete ? 'text-success' : 'text-subtle-foreground'}`} />
             )}
             {isFilling ? 'Agent is auto-filling the portal form…' : isComplete ? 'Portal form filled successfully' : 'Ready to auto-fill'}
           </div>

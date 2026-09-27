@@ -10,9 +10,9 @@ const VARIANTS = {
   primary:
     'bg-brand text-white border border-transparent hover:bg-brand-hover active:bg-brand-pressed disabled:bg-brand/50',
   secondary:
-    'bg-surface text-primary border border-default hover:bg-subtle active:bg-subtle disabled:opacity-50',
+    'bg-surface text-foreground border border-default hover:bg-subtle active:bg-subtle disabled:opacity-50',
   ghost:
-    'bg-transparent text-secondary border border-transparent hover:bg-subtle hover:text-primary active:bg-subtle disabled:opacity-50',
+    'bg-transparent text-muted-foreground border border-transparent hover:bg-subtle hover:text-foreground active:bg-subtle disabled:opacity-50',
   danger:
     'bg-error text-white border border-transparent hover:brightness-95 active:brightness-90 disabled:opacity-50',
 }

@@ -8,10 +8,10 @@ import { Card, Button, Badge, SectionHeader, Spinner } from './ui'
 function Field({ label, value, accent = false, mono = false }) {
   return (
     <div>
-      <div className="text-xs font-medium uppercase tracking-wide text-muted">{label}</div>
+      <div className="text-xs font-medium uppercase tracking-wide text-subtle-foreground">{label}</div>
       <div
         className={`mt-0.5 text-sm ${mono ? 'font-mono' : ''} ${
-          accent ? 'font-semibold text-brand' : 'font-medium text-primary'
+          accent ? 'font-semibold text-brand' : 'font-medium text-foreground'
         }`}
       >
         {value}
@@ -86,7 +86,7 @@ export default function DocumentViewer({
             </>
           )}
           {isProcessing && (
-            <div className="inline-flex h-10 items-center gap-2 rounded-md border border-default bg-subtle px-4 text-sm font-medium text-secondary">
+            <div className="inline-flex h-10 items-center gap-2 rounded-md border border-default bg-subtle px-4 text-sm font-medium text-subtle-foreground-foreground">
               <Spinner className="h-4 w-4 text-brand" />
               Processing…
             </div>
@@ -117,10 +117,10 @@ export default function DocumentViewer({
                 drag ? 'border-brand bg-brand-subtle' : 'border-default bg-subtle'
               }`}
             >
-              <Upload className={`h-7 w-7 ${drag ? 'text-brand' : 'text-muted'}`} />
+              <Upload className={`h-7 w-7 ${drag ? 'text-brand' : 'text-subtle-foreground'}`} />
             </div>
-            <h3 className="text-base font-semibold text-primary">Drop your claim document here</h3>
-            <p className="mt-1 text-sm text-secondary">Supports PDF, PNG, JPG and JPEG files</p>
+            <h3 className="text-base font-semibold text-foreground">Drop your claim document here</h3>
+            <p className="mt-1 text-sm text-subtle-foreground-foreground">Supports PDF, PNG, JPG and JPEG files</p>
             <Button variant="secondary" size="md" className="mt-5" onClick={() => fileInputRef.current?.click()}>
               Browse files
             </Button>
@@ -129,8 +129,8 @@ export default function DocumentViewer({
           /* ── Claim preview (CMS-1500) ── */
           <div className="p-4 sm:p-6">
             <div className="mb-4 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm text-secondary">
-                <FileText className="h-4 w-4 text-muted" />
+              <div className="flex items-center gap-2 text-sm text-subtle-foreground-foreground">
+                <FileText className="h-4 w-4 text-subtle-foreground" />
                 <span className="font-mono text-xs">{uploadedFile?.name || 'CMS-1500_Claim_Form.pdf'}</span>
               </div>
               {isComplete && (
@@ -145,10 +145,10 @@ export default function DocumentViewer({
             <div className="rounded-lg border border-default bg-surface">
               {/* Document masthead */}
               <div className="border-b border-default px-4 py-3 text-center sm:px-6">
-                <div className="text-[11px] font-medium uppercase tracking-[0.2em] text-muted">
+                <div className="text-[11px] font-medium uppercase tracking-[0.2em] text-subtle-foreground">
                   Health Insurance Claim Form
                 </div>
-                <div className="mt-0.5 text-sm font-semibold text-primary">CMS-1500 (02/12)</div>
+                <div className="mt-0.5 text-sm font-semibold text-foreground">CMS-1500 (02/12)</div>
               </div>
 
               {/* Patient / insured */}
@@ -161,7 +161,7 @@ export default function DocumentViewer({
 
               {/* Diagnosis */}
               <div className="border-b border-default px-4 py-4 sm:px-6">
-                <div className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">
+                <div className="mb-2 text-xs font-medium uppercase tracking-wide text-subtle-foreground">
                   21. Diagnosis or nature of illness
                 </div>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -171,8 +171,8 @@ export default function DocumentViewer({
                   </div>
                   {['B.', 'C.', 'D.'].map((l) => (
                     <div key={l} className="rounded-md border border-default bg-subtle px-3 py-2">
-                      <div className="text-[11px] text-muted">{l}</div>
-                      <div className="text-sm text-muted">—</div>
+                      <div className="text-[11px] text-subtle-foreground">{l}</div>
+                      <div className="text-sm text-subtle-foreground">—</div>
                     </div>
                   ))}
                 </div>
@@ -180,7 +180,7 @@ export default function DocumentViewer({
 
               {/* Procedures — responsive: table on sm+, stacked on mobile */}
               <div className="border-b border-default px-4 py-4 sm:px-6">
-                <div className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">
+                <div className="mb-2 text-xs font-medium uppercase tracking-wide text-subtle-foreground">
                   24. Procedures / services
                 </div>
 
@@ -198,7 +198,7 @@ export default function DocumentViewer({
                 <div className="hidden overflow-hidden rounded-md border border-default sm:block">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-default bg-subtle text-left text-xs uppercase tracking-wide text-muted">
+                      <tr className="border-b border-default bg-subtle text-left text-xs uppercase tracking-wide text-subtle-foreground">
                         <th className="px-3 py-2 font-medium">Date</th>
                         <th className="px-3 py-2 font-medium">Place</th>
                         <th className="px-3 py-2 font-medium">CPT</th>
@@ -208,7 +208,7 @@ export default function DocumentViewer({
                       </tr>
                     </thead>
                     <tbody>
-                      <tr className="text-primary">
+                      <tr className="text-foreground">
                         <td className="px-3 py-2.5 font-mono">{dosFormatted}</td>
                         <td className="px-3 py-2.5 font-mono">11</td>
                         <td className="px-3 py-2.5 font-mono font-semibold text-brand">{cptCode}</td>
@@ -225,8 +225,8 @@ export default function DocumentViewer({
               <div className="grid gap-4 px-4 py-4 sm:grid-cols-2 sm:px-6">
                 <Field label="33. Billing provider" value={providerName} />
                 <div className="sm:text-right">
-                  <div className="text-xs font-medium uppercase tracking-wide text-muted">28. Total charge</div>
-                  <div className="mt-0.5 text-xl font-semibold text-primary">{totalBilled}</div>
+                  <div className="text-xs font-medium uppercase tracking-wide text-subtle-foreground">28. Total charge</div>
+                  <div className="mt-0.5 text-xl font-semibold text-foreground">{totalBilled}</div>
                 </div>
               </div>
             </div>

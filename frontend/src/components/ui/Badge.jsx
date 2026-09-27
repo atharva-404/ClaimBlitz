@@ -10,7 +10,7 @@ const VARIANTS = {
   error: 'bg-error-subtle text-error',
   info: 'bg-info-subtle text-info',
   brand: 'bg-brand-subtle text-brand',
-  neutral: 'bg-subtle text-secondary',
+  neutral: 'bg-subtle text-muted-foreground',
 }
 
 export default function Badge({ variant = 'neutral', className = '', children, ...props }) {

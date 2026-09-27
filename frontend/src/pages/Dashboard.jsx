@@ -31,8 +31,8 @@ function riskMeta({ results, riskScore, isComplete }) {
 function SummaryCell({ label, children }) {
   return (
     <div className="min-w-0">
-      <div className="text-xs font-medium uppercase tracking-wide text-muted">{label}</div>
-      <div className="mt-1 truncate text-sm font-semibold text-primary">{children}</div>
+      <div className="text-xs font-medium uppercase tracking-wide text-subtle-foreground">{label}</div>
+      <div className="mt-1 truncate text-sm font-semibold text-foreground">{children}</div>
     </div>
   )
 }
@@ -64,7 +64,7 @@ export default function Dashboard() {
             <button
               onClick={() => navigate('/')}
               aria-label="Back to home"
-              className="rounded-md p-2 text-secondary transition-colors hover:bg-subtle hover:text-primary cursor-pointer"
+              className="rounded-md p-2 text-subtle-foreground-foreground transition-colors hover:bg-subtle hover:text-foreground cursor-pointer"
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
@@ -72,15 +72,15 @@ export default function Dashboard() {
               <ShieldCheck className="h-5 w-5 text-white" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-sm font-semibold leading-tight text-primary">ClaimBitz</h1>
-              <p className="text-xs text-muted">Claims Processing Workspace</p>
+              <h1 className="text-sm font-semibold leading-tight text-foreground">ClaimBitz</h1>
+              <p className="text-xs text-subtle-foreground">Claims Processing Workspace</p>
             </div>
           </div>
 
           <div className="ml-auto flex items-center gap-2 sm:gap-3">
             {/* Demo toggle */}
             <label className="flex cursor-pointer items-center gap-2 rounded-md border border-default bg-surface px-3 py-2">
-              <span className="text-xs font-medium text-secondary">Demo mode</span>
+              <span className="text-xs font-medium text-subtle-foreground-foreground">Demo mode</span>
               <button
                 type="button"
                 role="switch"
@@ -101,7 +101,7 @@ export default function Dashboard() {
             {/* Status pill */}
             <div className="flex items-center gap-2 rounded-md border border-default bg-surface px-3 py-2">
               <StatusDot variant={status.variant} pulse={status.pulse} />
-              <span className="hidden text-xs font-medium text-secondary sm:inline">{status.label}</span>
+              <span className="hidden text-xs font-medium text-subtle-foreground-foreground sm:inline">{status.label}</span>
             </div>
           </div>
         </div>
@@ -146,7 +146,7 @@ export default function Dashboard() {
             {risk ? (
               <Badge variant={risk.variant}>{risk.pct}% · {risk.readable}</Badge>
             ) : (
-              <span className="text-secondary">—</span>
+              <span className="text-subtle-foreground-foreground">—</span>
             )}
           </SummaryCell>
         </section>
@@ -188,7 +188,7 @@ export default function Dashboard() {
             aria-label="Diagnostics"
             className="space-y-4 xl:col-span-4 2xl:col-span-3 xl:sticky xl:top-24 self-start"
           >
-            <h2 className="px-1 text-xs font-semibold uppercase tracking-wide text-muted">Diagnostics</h2>
+            <h2 className="px-1 text-xs font-semibold uppercase tracking-wide text-subtle-foreground">Diagnostics</h2>
             <AgentStepper agents={agents} currentStep={currentStep} demoMode={demoMode} />
             <TerminalWindow logs={terminalLogs} isProcessing={isProcessing} />
           </aside>

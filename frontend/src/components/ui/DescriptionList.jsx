@@ -15,8 +15,8 @@ export default function DescriptionList({ items = [], columns = 1, className = '
           key={item.label ?? i}
           className="flex items-center justify-between gap-4 border-b border-default py-2.5 last:border-0"
         >
-          <dt className="text-sm text-secondary">{item.label}</dt>
-          <dd className="text-sm font-medium text-primary text-right break-words">{item.value}</dd>
+          <dt className="text-sm text-muted-foreground">{item.label}</dt>
+          <dd className="text-sm font-medium text-foreground text-right break-words">{item.value}</dd>
         </div>
       ))}
     </dl>

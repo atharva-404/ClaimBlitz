@@ -16,7 +16,7 @@ function Navbar() {
           <div className="flex h-8 w-8 items-center justify-center rounded-md bg-brand">
             <ShieldCheck className="h-5 w-5 text-white" />
           </div>
-          <span className="text-base font-semibold text-primary">ClaimBitz</span>
+          <span className="text-base font-semibold text-foreground">ClaimBitz</span>
         </div>
         <Button variant="primary" size="sm" onClick={() => navigate('/dashboard')}>
           Open console
@@ -38,10 +38,10 @@ function Hero() {
             Multi-agent claim analysis
           </Badge>
         </div>
-        <h1 className="text-4xl font-bold leading-tight tracking-tight text-primary sm:text-5xl">
+        <h1 className="text-4xl font-bold leading-tight tracking-tight text-foreground sm:text-5xl">
           Medical claim processing,<br className="hidden sm:block" /> reviewed in seconds
         </h1>
-        <p className="mx-auto mt-5 max-w-2xl text-lg text-secondary">
+        <p className="mx-auto mt-5 max-w-2xl text-lg text-subtle-foreground-foreground">
           ClaimBitz reads a claim document, validates it, checks clinical and policy rules,
           detects fraud signals, scores rejection risk, and drafts the response — with a full,
           auditable trail of how each decision was made.
@@ -68,8 +68,8 @@ function Hero() {
             { val: '9 agents', lbl: 'Collaborative pipeline' },
           ].map((s) => (
             <div key={s.lbl}>
-              <div className="text-xl font-bold text-primary sm:text-2xl">{s.val}</div>
-              <div className="mt-1 text-xs text-secondary sm:text-sm">{s.lbl}</div>
+              <div className="text-xl font-bold text-foreground sm:text-2xl">{s.val}</div>
+              <div className="mt-1 text-xs text-subtle-foreground-foreground sm:text-sm">{s.lbl}</div>
             </div>
           ))}
         </div>
@@ -90,10 +90,10 @@ function Capabilities() {
     <section className="bg-canvas">
       <div className="mx-auto max-w-6xl px-5 py-20 lg:px-8">
         <div className="mb-12 max-w-2xl">
-          <h2 className="text-2xl font-bold tracking-tight text-primary sm:text-3xl">
+          <h2 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
             Built for claims operations
           </h2>
-          <p className="mt-3 text-secondary">
+          <p className="mt-3 text-subtle-foreground-foreground">
             Every step is explainable and auditable, so reviewers stay in control of the decision.
           </p>
         </div>
@@ -103,8 +103,8 @@ function Capabilities() {
               <div className="flex h-10 w-10 items-center justify-center rounded-md bg-brand-subtle">
                 <it.icon className="h-5 w-5 text-brand" />
               </div>
-              <h3 className="mt-4 text-base font-semibold text-primary">{it.title}</h3>
-              <p className="mt-1.5 text-sm leading-relaxed text-secondary">{it.desc}</p>
+              <h3 className="mt-4 text-base font-semibold text-foreground">{it.title}</h3>
+              <p className="mt-1.5 text-sm leading-relaxed text-subtle-foreground-foreground">{it.desc}</p>
             </Card>
           ))}
         </div>
@@ -129,14 +129,14 @@ function ProblemSolution() {
     <section className="border-y border-default bg-surface">
       <div className="mx-auto grid max-w-6xl gap-10 px-5 py-20 md:grid-cols-2 lg:px-8">
         <div>
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-muted">Today's reality</h3>
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-subtle-foreground">Today's reality</h3>
           <ul className="mt-5 space-y-3">
             {problems.map((p, i) => (
               <li key={i} className="flex items-center gap-3 rounded-lg border border-default bg-canvas p-4">
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-error-subtle">
                   <p.icon className="h-4 w-4 text-error" />
                 </span>
-                <span className="text-sm text-secondary">{p.text}</span>
+                <span className="text-sm text-subtle-foreground-foreground">{p.text}</span>
               </li>
             ))}
           </ul>
@@ -149,7 +149,7 @@ function ProblemSolution() {
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-success-subtle">
                   <CheckCircle2 className="h-4 w-4 text-success" />
                 </span>
-                <span className="text-sm font-medium text-primary">{s.text}</span>
+                <span className="text-sm font-medium text-foreground">{s.text}</span>
               </li>
             ))}
           </ul>
@@ -170,8 +170,8 @@ function HowItWorks() {
     <section id="how-it-works" className="bg-canvas">
       <div className="mx-auto max-w-6xl px-5 py-20 lg:px-8">
         <div className="mb-12 max-w-2xl">
-          <h2 className="text-2xl font-bold tracking-tight text-primary sm:text-3xl">How it works</h2>
-          <p className="mt-3 text-secondary">Three phases. Nine agents. One auditable pipeline.</p>
+          <h2 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">How it works</h2>
+          <p className="mt-3 text-subtle-foreground-foreground">Three phases. Nine agents. One auditable pipeline.</p>
         </div>
         <div className="grid gap-5 md:grid-cols-3">
           {steps.map((f) => (
@@ -180,10 +180,10 @@ function HowItWorks() {
                 <span className="flex h-10 w-10 items-center justify-center rounded-md bg-brand-subtle">
                   <f.icon className="h-5 w-5 text-brand" />
                 </span>
-                <span className="font-mono text-sm font-semibold text-muted">{f.step}</span>
+                <span className="font-mono text-sm font-semibold text-subtle-foreground">{f.step}</span>
               </div>
-              <h3 className="mt-4 text-lg font-semibold text-primary">{f.title}</h3>
-              <p className="mt-1.5 text-sm leading-relaxed text-secondary">{f.desc}</p>
+              <h3 className="mt-4 text-lg font-semibold text-foreground">{f.title}</h3>
+              <p className="mt-1.5 text-sm leading-relaxed text-subtle-foreground-foreground">{f.desc}</p>
             </Card>
           ))}
         </div>
@@ -198,10 +198,10 @@ function CTA() {
   return (
     <section className="border-t border-default bg-surface">
       <div className="mx-auto max-w-3xl px-5 py-20 text-center lg:px-8">
-        <h2 className="text-2xl font-bold tracking-tight text-primary sm:text-3xl">
+        <h2 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
           Ready to review claims faster?
         </h2>
-        <p className="mx-auto mt-3 max-w-xl text-secondary">
+        <p className="mx-auto mt-3 max-w-xl text-subtle-foreground-foreground">
           Open the console and run a claim through the full multi-agent pipeline.
         </p>
         <Button variant="primary" size="lg" className="mt-8" onClick={() => navigate('/dashboard')}>
@@ -224,7 +224,7 @@ export default function LandingPage() {
       <HowItWorks />
       <CTA />
       <footer className="border-t border-default bg-surface">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-5 py-8 text-sm text-muted md:flex-row lg:px-8">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-5 py-8 text-sm text-subtle-foreground md:flex-row lg:px-8">
           <div className="flex items-center gap-2">
             <ShieldCheck className="h-4 w-4 text-brand" />
             <span>ClaimBitz © 2026</span>

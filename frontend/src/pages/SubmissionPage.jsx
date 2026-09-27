@@ -38,13 +38,13 @@ export default function SubmissionPage() {
           <button
             onClick={() => navigate('/dashboard')}
             aria-label="Back to dashboard"
-            className="rounded-md p-2 text-secondary transition-colors hover:bg-subtle hover:text-primary cursor-pointer"
+            className="rounded-md p-2 text-subtle-foreground-foreground transition-colors hover:bg-subtle hover:text-foreground cursor-pointer"
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div>
-            <h1 className="text-base font-semibold text-primary">Claim submission</h1>
-            <p className="text-xs text-muted">Route the processed claim to an insurer portal</p>
+            <h1 className="text-base font-semibold text-foreground">Claim submission</h1>
+            <p className="text-xs text-subtle-foreground">Route the processed claim to an insurer portal</p>
           </div>
         </div>
       </header>
@@ -92,7 +92,7 @@ export default function SubmissionPage() {
 
         {/* Insurer selection */}
         <div>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">Select insurer portal</h2>
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-subtle-foreground">Select insurer portal</h2>
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
             {INSURERS.map((insurer) => (
               <Card key={insurer.id} variant="interactive" className="flex flex-col p-5">
@@ -104,9 +104,9 @@ export default function SubmissionPage() {
                     {claimSnapshot ? 'Ready' : 'No claim'}
                   </Badge>
                 </div>
-                <h3 className="mt-4 text-base font-semibold text-primary">{insurer.name}</h3>
-                <p className="mt-0.5 text-sm text-secondary">{insurer.tagline}</p>
-                <p className="mt-3 flex-1 text-xs leading-relaxed text-muted">
+                <h3 className="mt-4 text-base font-semibold text-foreground">{insurer.name}</h3>
+                <p className="mt-0.5 text-sm text-subtle-foreground-foreground">{insurer.tagline}</p>
+                <p className="mt-3 flex-1 text-xs leading-relaxed text-subtle-foreground">
                   Opens the portal, maps extracted fields, auto-fills the form and generates an application number.
                 </p>
                 <Button
@@ -124,7 +124,7 @@ export default function SubmissionPage() {
           </div>
         </div>
 
-        <p className="text-xs text-muted">
+        <p className="text-xs text-subtle-foreground">
           Submission data comes from the local snapshot saved after the latest processed document.
         </p>
       </main>

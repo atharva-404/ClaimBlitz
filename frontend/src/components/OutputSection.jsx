@@ -79,7 +79,7 @@ export default function OutputSection({ results }) {
             aria-selected={tab === t.id}
             onClick={() => setTab(t.id)}
             className={`relative flex shrink-0 items-center gap-2 px-4 py-3 text-sm font-medium transition-colors cursor-pointer ${
-              tab === t.id ? 'text-brand' : 'text-secondary hover:text-primary'
+              tab === t.id ? 'text-brand' : 'text-subtle-foreground-foreground hover:text-foreground'
             }`}
           >
             <t.Icon className="h-4 w-4" />
@@ -99,7 +99,7 @@ export default function OutputSection({ results }) {
       <div className="max-h-[320px] overflow-y-auto p-5">
         {(tab === 'email' || tab === 'whatsapp') && (
           <div className="rounded-md border border-default bg-subtle p-4">
-            <pre className="whitespace-pre-wrap font-mono text-xs leading-relaxed text-secondary">
+            <pre className="whitespace-pre-wrap font-mono text-xs leading-relaxed text-subtle-foreground-foreground">
               {tab === 'email' ? results.email : results.whatsapp}
             </pre>
           </div>
@@ -115,13 +115,13 @@ export default function OutputSection({ results }) {
             />
             <div className="mt-4 flex items-center justify-between rounded-md border border-default bg-subtle p-4">
               <div>
-                <div className="text-xs text-secondary">Recommendation</div>
+                <div className="text-xs text-subtle-foreground-foreground">Recommendation</div>
                 <Badge variant={recBadge} className="mt-1">{results.recommendation}</Badge>
               </div>
               <div className="text-right">
-                <div className="text-xs text-secondary">Risk score</div>
-                <div className="mt-1 text-sm font-semibold text-primary">
-                  {results.riskScore} <span className="text-secondary">({results.riskLabel})</span>
+                <div className="text-xs text-subtle-foreground-foreground">Risk score</div>
+                <div className="mt-1 text-sm font-semibold text-foreground">
+                  {results.riskScore} <span className="text-subtle-foreground-foreground">({results.riskLabel})</span>
                 </div>
               </div>
             </div>
@@ -134,15 +134,15 @@ export default function OutputSection({ results }) {
               <div key={i} className="flex items-start gap-3 rounded-md border border-default p-3">
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-semibold capitalize text-primary">
+                    <span className="text-sm font-semibold capitalize text-foreground">
                       {f.agent.replace(/_/g, ' ')}
                     </span>
                     <Badge variant={VERDICT_BADGE[f.verdict] || 'neutral'}>
                       {f.verdict.toUpperCase()}
                     </Badge>
-                    <span className="text-xs text-muted">conf {(f.confidence * 100).toFixed(0)}%</span>
+                    <span className="text-xs text-subtle-foreground">conf {(f.confidence * 100).toFixed(0)}%</span>
                   </div>
-                  <p className="mt-1 text-xs leading-relaxed text-secondary">{f.reasoning}</p>
+                  <p className="mt-1 text-xs leading-relaxed text-subtle-foreground-foreground">{f.reasoning}</p>
                 </div>
               </div>
             ))}

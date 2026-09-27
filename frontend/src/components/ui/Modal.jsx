@@ -30,7 +30,7 @@ export default function Modal({ open, onClose, title, children, className = '' }
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
-            className="absolute inset-0 bg-primary/40"
+            className="absolute inset-0 bg-foreground/40"
             onClick={onClose}
           />
           <motion.div
@@ -45,12 +45,12 @@ export default function Modal({ open, onClose, title, children, className = '' }
           >
             {title && (
               <div className="flex items-center justify-between border-b border-default px-5 py-4">
-                <h2 className="text-base font-semibold text-primary">{title}</h2>
+                <h2 className="text-base font-semibold text-foreground">{title}</h2>
                 <button
                   type="button"
                   onClick={onClose}
                   aria-label="Close dialog"
-                  className="rounded-md p-1 text-secondary hover:bg-subtle hover:text-primary transition-colors cursor-pointer"
+                  className="rounded-md p-1 text-muted-foreground hover:bg-subtle hover:text-foreground transition-colors cursor-pointer"
                 >
                   <X className="h-5 w-5" />
                 </button>

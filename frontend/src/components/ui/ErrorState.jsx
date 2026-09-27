@@ -45,8 +45,8 @@ export default function ErrorState({
       <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-error-subtle">
         <AlertTriangle className="h-6 w-6 text-error" />
       </div>
-      <h3 className="text-base font-semibold text-primary">{title}</h3>
-      {message && <p className="mt-1 max-w-sm text-sm text-secondary break-words">{message}</p>}
+      <h3 className="text-base font-semibold text-foreground">{title}</h3>
+      {message && <p className="mt-1 max-w-sm text-sm text-muted-foreground break-words">{message}</p>}
       {onRetry && (
         <button
           type="button"

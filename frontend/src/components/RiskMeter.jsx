@@ -67,12 +67,12 @@ export default function RiskMeter({ score, isProcessing, results }) {
 
         {/* Recommendation */}
         {!isProcessing && score > 0 && (
-          <p className="mt-2 text-sm text-secondary">
-            Recommendation: <span className="font-semibold text-primary">{c.rec}</span>
+          <p className="mt-2 text-sm text-subtle-foreground-foreground">
+            Recommendation: <span className="font-semibold text-foreground">{c.rec}</span>
           </p>
         )}
         {analyzing && (
-          <p className="mt-2 text-sm text-secondary">Evaluating risk factors…</p>
+          <p className="mt-2 text-sm text-subtle-foreground-foreground">Evaluating risk factors…</p>
         )}
       </div>
 
@@ -80,23 +80,23 @@ export default function RiskMeter({ score, isProcessing, results }) {
         <div className="mt-6 space-y-4">
           {/* Model breakdown */}
           <div className="rounded-md border border-default bg-subtle p-4">
-            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Risk model</div>
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-subtle-foreground">Risk model</div>
             <dl className="space-y-1.5 text-sm">
               <div className="flex justify-between gap-4">
-                <dt className="text-secondary">Engine</dt>
-                <dd className="font-medium text-primary">{model?.engine || 'rules'}</dd>
+                <dt className="text-subtle-foreground-foreground">Engine</dt>
+                <dd className="font-medium text-foreground">{model?.engine || 'rules'}</dd>
               </div>
               <div className="flex justify-between gap-4">
-                <dt className="text-secondary">Model</dt>
-                <dd className="font-mono text-xs font-medium text-primary">{model?.modelName || 'deterministic-rules-v1'}</dd>
+                <dt className="text-subtle-foreground-foreground">Model</dt>
+                <dd className="font-mono text-xs font-medium text-foreground">{model?.modelName || 'deterministic-rules-v1'}</dd>
               </div>
               <div className="flex justify-between gap-4">
-                <dt className="text-secondary">Base score</dt>
-                <dd className="font-medium text-primary">{model?.baseScore ?? 0}</dd>
+                <dt className="text-subtle-foreground-foreground">Base score</dt>
+                <dd className="font-medium text-foreground">{model?.baseScore ?? 0}</dd>
               </div>
               <div className="flex justify-between gap-4">
-                <dt className="text-secondary">Thresholds</dt>
-                <dd className="font-medium text-primary">
+                <dt className="text-subtle-foreground-foreground">Thresholds</dt>
+                <dd className="font-medium text-foreground">
                   Low ≤ {model?.thresholds?.lowMax ?? 0.3}, Med ≤ {model?.thresholds?.mediumMax ?? 0.6}
                 </dd>
               </div>

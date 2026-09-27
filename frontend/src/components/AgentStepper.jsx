@@ -9,7 +9,7 @@ import { Card, Badge, SectionHeader } from './ui'
 const ICONS = { ScanLine, ShieldCheck, Activity, MessageSquare }
 
 const STATUS = {
-  idle: { label: 'Pending', badge: 'neutral', dot: 'bg-muted', icon: 'text-muted', border: 'border-default', bg: 'bg-surface' },
+  idle: { label: 'Pending', badge: 'neutral', dot: 'bg-subtle-foreground', icon: 'text-subtle-foreground', border: 'border-default', bg: 'bg-surface' },
   processing: { label: 'Processing', badge: 'info', dot: 'bg-brand', icon: 'text-brand', border: 'border-brand-border', bg: 'bg-brand-subtle' },
   completed: { label: 'Completed', badge: 'success', dot: 'bg-success', icon: 'text-success', border: 'border-default', bg: 'bg-surface' },
   error: { label: 'Failed', badge: 'error', dot: 'bg-error', icon: 'text-error', border: 'border-error/40', bg: 'bg-surface' },
@@ -59,16 +59,16 @@ function AgentRow({ agent, index, isLast }) {
         >
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <span className={`text-sm font-semibold ${agent.status === 'idle' ? 'text-secondary' : 'text-primary'}`}>
+              <span className={`text-sm font-semibold ${agent.status === 'idle' ? 'text-subtle-foreground-foreground' : 'text-foreground'}`}>
                 {agent.name}
               </span>
               <Badge variant={cfg.badge}>{cfg.label}</Badge>
             </div>
-            <p className="mt-0.5 truncate text-xs text-muted">{agent.description}</p>
+            <p className="mt-0.5 truncate text-xs text-subtle-foreground">{agent.description}</p>
           </div>
           {hasLogs && (
             <ChevronDown
-              className={`mt-0.5 h-4 w-4 shrink-0 text-muted transition-transform ${open ? 'rotate-180' : ''}`}
+              className={`mt-0.5 h-4 w-4 shrink-0 text-subtle-foreground transition-transform ${open ? 'rotate-180' : ''}`}
             />
           )}
         </button>
