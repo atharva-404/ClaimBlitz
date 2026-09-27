@@ -23,7 +23,7 @@ function labelize(key) {
 function formatValue(key, value) {
   const k = key.toLowerCase()
   if (typeof value === 'number' && (k.includes('amount') || k.includes('billed') || k.includes('responsibility'))) {
-    return `$${value.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+    return `₹${value.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
   }
   return String(value)
 }

@@ -28,12 +28,12 @@ export function WorkspacePreview() {
   const done = step >= SHOWN
   const regions = done ? [] : DEMO_AGENTS[step].regions
   const rows = [
-    ['Insured ID', 'XJQ4481902', 'insurance'],
-    ['Patient', 'Hartley, Denise M', 'patient'],
-    ['Provider NPI', '1487563920', 'provider'],
+    ['Insured ID', 'SH4481902', 'insurance'],
+    ['Patient', 'Sharma, Ananya D', 'patient'],
+    ['Provider Reg.', '1487563920', 'provider'],
     ['Diagnosis', 'E11.9 · I10 · E78.5', 'diagnosis'],
     ['Procedures', '99214 · 83036 · 80061', 'services'],
-    ['Total charge', '$412.00', 'totals'],
+    ['Total charge', '₹41,200', 'totals'],
   ]
 
   return (

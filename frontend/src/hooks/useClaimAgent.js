@@ -57,16 +57,16 @@ export function useClaimAgent() {
 
   const getDemoPayload = useCallback(() => ({
     claimData: {
-      patientName: 'John D. Miller',
+      patientName: 'Rahul Sharma',
       dob: '1985-03-14',
-      policyNumber: '882-ALT-9921',
+      policyNumber: 'SH-IND-884512',
       diagnosisCode: 'J18.9',
       diagnosisDesc: 'Pneumonia, unspecified organism',
       cptCode: '99213',
-      provider: 'SUMMIT HEALTH CLINIC',
-      totalBilled: 4250.0,
-      approvedAmount: 3612.5,
-      patientResponsibility: 637.5,
+      provider: 'APOLLO SPECIALITY HOSPITAL',
+      totalBilled: 145000,
+      approvedAmount: 123250,
+      patientResponsibility: 21750,
       dateOfService: '2026-04-10',
     },
     riskScore: 0.24,
@@ -85,8 +85,8 @@ export function useClaimAgent() {
         { rule: 'provider_in_network_bonus', delta: 0.04, reason: 'Provider appears in network reference list' },
       ],
     },
-    email: `Subject: Claim Review Update — Policy #882-ALT-9921\n\nDear Policyholder,\n\nYour medical claim has been processed successfully.\n\nDecision: APPROVE\nRisk Level: LOW\nApproved Amount: $3,612.50\nPatient Responsibility: $637.50\n\nBest regards,\nBinary Blitz Claim Agent`,
-    whatsapp: 'Claim Status Update\\n\\nProvider: SUMMIT HEALTH CLINIC\\nDiagnosis: J18.9\\nApproved: $3,612.50\\nYour Cost: $637.50\\nDecision: APPROVE (LOW)\\nRisk Score: 0.24',
+    email: `Subject: Claim Review Update — Policy #SH-IND-884512\n\nDear Policyholder,\n\nYour medical claim has been processed successfully.\n\nDecision: APPROVE\nRisk Level: LOW\nApproved Amount: ₹1,23,250.00\nPatient Responsibility: ₹21,750.00\n\nBest regards,\nClaimBitz Claim Agent`,
+    whatsapp: 'Claim Status Update\\n\\nProvider: APOLLO SPECIALITY HOSPITAL\\nDiagnosis: J18.9\\nApproved: ₹1,23,250.00\\nYour Cost: ₹21,750.00\\nDecision: APPROVE (LOW)\\nRisk Score: 0.24',
   }), [])
 
   const processReal = useCallback(async () => {

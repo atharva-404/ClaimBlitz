@@ -76,16 +76,16 @@ describe('useClaimAgent hook - Hook Execution', () => {
     // Test that the hook's getDemoPayload returns expected structure
     const expectedDemoPayload = {
       claimData: {
-        patientName: 'John D. Miller',
+        patientName: 'Rahul Sharma',
         dob: '1985-03-14',
-        policyNumber: '882-ALT-9921',
+        policyNumber: 'SH-IND-884512',
         diagnosisCode: 'J18.9',
         diagnosisDesc: 'Pneumonia, unspecified organism',
         cptCode: '99213',
-        provider: 'SUMMIT HEALTH CLINIC',
-        totalBilled: 4250.0,
-        approvedAmount: 3612.5,
-        patientResponsibility: 637.5,
+        provider: 'APOLLO SPECIALITY HOSPITAL',
+        totalBilled: 145000,
+        approvedAmount: 123250,
+        patientResponsibility: 21750,
         dateOfService: '2026-04-10',
       },
       riskScore: 0.24,
@@ -96,7 +96,7 @@ describe('useClaimAgent hook - Hook Execution', () => {
     }
 
     // Verify structure matches what's expected in demo mode
-    expect(expectedDemoPayload.claimData).toHaveProperty('patientName', 'John D. Miller')
+    expect(expectedDemoPayload.claimData).toHaveProperty('patientName', 'Rahul Sharma')
     expect(expectedDemoPayload.riskScore).toBe(0.24)
     expect(expectedDemoPayload.riskLabel).toBe('LOW')
     expect(expectedDemoPayload.recommendation).toBe('APPROVE')

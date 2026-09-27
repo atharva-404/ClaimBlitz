@@ -22,7 +22,7 @@ function fmtDate(value) {
 
 function fmtMoney(v) {
   return typeof v === 'number'
-    ? `$${v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    ? `₹${v.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
     : '—'
 }
 

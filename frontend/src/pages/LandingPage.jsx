@@ -194,8 +194,8 @@ function ClaimAnatomy() {
             <p className="font-mono text-[10.5px] text-muted-foreground">CMS-1500 (02/12)</p>
           </div>
           <div className="grid grid-cols-2 divide-x divide-border border-b border-border">
-            <Box id="insurance" on={on('insurance')} label="1. Insurance · payer">Meridian Health Plan · MER01</Box>
-            <Box id="patient" on={on('patient')} label="2. Patient">Hartley, Denise M · 04/17/1972</Box>
+            <Box id="insurance" on={on('insurance')} label="1. Insurance · payer">Star Health Insurance · SH01</Box>
+            <Box id="patient" on={on('patient')} label="2. Patient">Sharma, Ananya D · 17/04/1985</Box>
           </div>
           <div className="border-b border-border">
             <Box id="diagnosis" on={on('diagnosis')} label="21. Diagnosis (ICD-10)">
@@ -208,9 +208,9 @@ function ClaimAnatomy() {
             </Box>
           </div>
           <div className="grid grid-cols-2 divide-x divide-border">
-            <Box id="provider" on={on('provider')} label="33. Provider">Elmwood Internal Medicine · NPI 1902847561</Box>
+            <Box id="provider" on={on('provider')} label="33. Provider">Manipal Internal Medicine · Reg 1902847561</Box>
             <Box id="totals" on={on('totals')} label="28. Total charge">
-              <span className="font-mono">$412.00</span>
+              <span className="font-mono">₹41,200</span>
             </Box>
           </div>
         </div>

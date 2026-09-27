@@ -12,7 +12,7 @@ export const DEMO_AGENTS = [
   { name: 'OCR Agent', short: 'OCR', description: 'Fields extracted from claim', activity: 'Extracting 38 fields from the CMS-1500', seconds: 2.4, regions: ['patient', 'provider'] },
   { name: 'Validation Agent', short: 'Validation', description: 'Required fields and formats checked', activity: 'Checking required fields, IDs and date formats', seconds: 2.1, regions: ['patient', 'provider', 'totals'] },
   { name: 'Medical Expert', short: 'Medical', description: 'Diagnosis and procedures reviewed', activity: 'Reviewing diagnosis and procedure consistency', seconds: 4.6, regions: ['diagnosis', 'services'] },
-  { name: 'Policy Expert', short: 'Policy', description: 'Payer policy rules checked', activity: 'Matching coverage against Meridian payer rules', seconds: 3.8, regions: ['insurance'] },
+  { name: 'Policy Expert', short: 'Policy', description: 'Payer policy rules checked', activity: 'Matching coverage against Star Health payer rules', seconds: 3.8, regions: ['insurance'] },
   { name: 'Fraud Detection', short: 'Fraud', description: 'Billing anomalies scanned', activity: 'Scanning service lines for billing anomalies', seconds: 4.1, regions: ['services', 'totals'] },
   { name: 'Risk Assessment', short: 'Risk', description: 'Rejection likelihood scored', activity: 'Scoring rejection likelihood from all findings', seconds: 3.5, regions: [] },
   { name: 'Communication', short: 'Comms', description: 'Payer response drafted', activity: 'Drafting the payer response and summary', seconds: 3.2, regions: [] },
