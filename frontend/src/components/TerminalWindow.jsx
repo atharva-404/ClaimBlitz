@@ -81,7 +81,7 @@ export default function TerminalWindow({ logs, isProcessing }) {
                       log.text.includes('[SUCCESS]') ? 'text-[#4ADE80]' :
                       log.text.includes('[WARN]') ? 'text-[#FBBF24]' :
                       log.text.includes('[ERROR]') ? 'text-[#F87171]' :
-                      log.text.includes('[DATA]') ? 'text-[#818CF8]' :
+                      log.text.includes('[DATA]') ? 'text-[#E8965A]' :
                       log.text.includes('[SYSTEM]') ? 'text-slate-300' :
                       'text-slate-400'
                     }

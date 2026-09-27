@@ -6,30 +6,34 @@
    bg-surface, text-primary, border-default, rounded-lg, shadow-md work.
    ============================================================================= */
 @theme {
-  /* -- Color: surfaces & text -- */
-  --color-canvas: #F7F8FA;        /* app background */
+  /* -- Color: surfaces & text (warm off-white system) -- */
+  --color-canvas: #F5F5F3;        /* app background */
   --color-surface: #FFFFFF;       /* cards, panels */
+  --color-secondary-surface: #FAFAF8; /* recessed / subtle panels */
   --color-elevated: #FFFFFF;      /* popovers, modals (paired with shadow) */
-  --color-primary: #0F172A;       /* primary text */
-  --color-secondary: #5B6472;     /* secondary text */
-  --color-muted: #8A93A2;         /* metadata / tertiary text */
-  --color-default: #E5E8EC;       /* borders / dividers */
-  --color-subtle: #F1F3F6;        /* subtle fills, hover backgrounds */
+  --color-primary: #171717;       /* primary text */
+  --color-secondary: #686868;     /* secondary text */
+  --color-muted: #929292;         /* metadata / tertiary text */
+  --color-default: #E5E5E2;       /* borders / dividers */
+  --color-subtle: #EEEEEB;        /* subtle fills, hover backgrounds */
 
-  /* -- Color: brand -- */
-  --color-brand: #4F46E5;
-  --color-brand-hover: #4338CA;
-  --color-brand-subtle: #EEF0FE;
+  /* -- Color: brand (ClaimBitz copper — interaction/identity only) -- */
+  --color-brand: #C76A2B;
+  --color-brand-hover: #A95720;
+  --color-brand-pressed: #8F431A;
+  --color-brand-subtle: #FFF3E8;
+  --color-brand-border: #F1C9A8;
 
-  /* -- Color: semantic -- */
+  /* -- Color: semantic (kept distinct from brand copper) -- */
   --color-success: #16A34A;
-  --color-success-subtle: #E9F7EF;
+  --color-success-subtle: #ECFDF3;
   --color-warning: #D97706;
-  --color-warning-subtle: #FDF3E7;
+  --color-warning-subtle: #FFF7E6;
   --color-error: #DC2626;
-  --color-error-subtle: #FCECEC;
-  --color-info: #4F46E5;
-  --color-info-subtle: #EEF0FE;
+  --color-error-subtle: #FEF2F2;
+  /* info == brand: "active/processing" is a product state, so it uses copper */
+  --color-info: #C76A2B;
+  --color-info-subtle: #FFF3E8;
 
   /* -- Terminal (intentionally dark surface) -- */
   --color-term-bg: #0E1220;
@@ -71,8 +75,8 @@ body,
 
 body {
   margin: 0;
-  background: #F7F8FA;
-  color: #0F172A;
+  background: #F5F5F3;
+  color: #171717;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-size: 16px;
   line-height: 1.5;
@@ -102,13 +106,13 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #D3D8E0;
+  background: #D6D6D1;
   border-radius: var(--radius-full);
   border: 2px solid transparent;
   background-clip: content-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #B9C0CC;
+  background: #BEBEB8;
   background-clip: content-box;
 }
 
@@ -121,7 +125,7 @@ body {
 
 .cursor-blink::after {
   content: '▊';
-  color: #6366F1;
+  color: #C76A2B;
   animation: blink-cursor 1s step-end infinite;
 }
 @keyframes blink-cursor {

@@ -8,18 +8,18 @@ import { Card, Badge, SectionHeader, Textarea } from './ui'
 function cfg(score) {
   if (score <= 0.3) {
     return {
-      color: '#16A34A', trail: '#E9F7EF',
+      color: '#16A34A', trail: '#ECFDF3',
       label: 'Low risk', rec: 'Approve', badge: 'success', Icon: TrendingDown,
     }
   }
   if (score <= 0.6) {
     return {
-      color: '#D97706', trail: '#FDF3E7',
+      color: '#D97706', trail: '#FFF7E6',
       label: 'Medium risk', rec: 'Review', badge: 'warning', Icon: Activity,
     }
   }
   return {
-    color: '#DC2626', trail: '#FCECEC',
+    color: '#DC2626', trail: '#FEF2F2',
     label: 'High risk', rec: 'Reject', badge: 'error', Icon: TrendingUp,
   }
 }
@@ -48,7 +48,7 @@ export default function RiskMeter({ score, isProcessing, results }) {
             strokeWidth={8}
             styles={buildStyles({
               textSize: '20px',
-              textColor: '#0F172A',
+              textColor: '#171717',
               pathColor: c.color,
               trailColor: c.trail,
               pathTransitionDuration: 0.8,

@@ -8,7 +8,7 @@ import React from 'react'
  */
 const VARIANTS = {
   primary:
-    'bg-brand text-white border border-transparent hover:bg-brand-hover active:bg-brand-hover disabled:bg-brand/50',
+    'bg-brand text-white border border-transparent hover:bg-brand-hover active:bg-brand-pressed disabled:bg-brand/50',
   secondary:
     'bg-surface text-primary border border-default hover:bg-subtle active:bg-subtle disabled:opacity-50',
   ghost:

@@ -9,10 +9,10 @@ import { Card, Badge, SectionHeader } from './ui'
 const ICONS = { ScanLine, ShieldCheck, Activity, MessageSquare }
 
 const STATUS = {
-  idle: { label: 'Pending', badge: 'neutral', dot: 'bg-muted', icon: 'text-muted', border: 'border-default' },
-  processing: { label: 'Processing', badge: 'info', dot: 'bg-brand', icon: 'text-brand', border: 'border-brand/40' },
-  completed: { label: 'Completed', badge: 'success', dot: 'bg-success', icon: 'text-success', border: 'border-default' },
-  error: { label: 'Failed', badge: 'error', dot: 'bg-error', icon: 'text-error', border: 'border-error/40' },
+  idle: { label: 'Pending', badge: 'neutral', dot: 'bg-muted', icon: 'text-muted', border: 'border-default', bg: 'bg-surface' },
+  processing: { label: 'Processing', badge: 'info', dot: 'bg-brand', icon: 'text-brand', border: 'border-brand-border', bg: 'bg-brand-subtle' },
+  completed: { label: 'Completed', badge: 'success', dot: 'bg-success', icon: 'text-success', border: 'border-default', bg: 'bg-surface' },
+  error: { label: 'Failed', badge: 'error', dot: 'bg-error', icon: 'text-error', border: 'border-error/40', bg: 'bg-surface' },
 }
 
 function AgentRow({ agent, index, isLast }) {
@@ -48,7 +48,7 @@ function AgentRow({ agent, index, isLast }) {
         )}
       </span>
 
-      <div className={`rounded-md border ${cfg.border} bg-surface`}>
+      <div className={`rounded-md border ${cfg.border} ${cfg.bg}`}>
         <button
           type="button"
           onClick={() => hasLogs && setOpen(!open)}
@@ -91,7 +91,7 @@ function AgentRow({ agent, index, isLast }) {
                           log.includes('[SUCCESS]') ? 'text-[#4ADE80]' :
                           log.includes('[WARN]') ? 'text-[#FBBF24]' :
                           log.includes('[ERROR]') ? 'text-[#F87171]' :
-                          log.includes('[DATA]') ? 'text-[#818CF8]' :
+                          log.includes('[DATA]') ? 'text-[#E8965A]' :
                           'text-slate-400'
                         }
                       >
