@@ -9,7 +9,9 @@ import { cn } from '../../lib/utils'
  * `state`: 'idle' | 'running' | 'complete' | 'failed'
  */
 export function ProcessingLogs({ logs = [], state = 'idle' }) {
-  const [open, setOpen] = useState(true)
+  // Collapsed by default to match Lovable's console presentation. Logs still
+  // stream and the header surfaces Streaming/Complete/Stopped status.
+  const [open, setOpen] = useState(false)
   const scrollRef = useRef(null)
 
   useEffect(() => {
