@@ -75,7 +75,7 @@ function CMS1500({ claim, scanning = false, focus = [], focusLabel }) {
   )
 
   return (
-    <div className="relative overflow-hidden rounded-[6px] border border-border-strong bg-surface shadow-paper ring-1 ring-foreground/[0.03]">
+    <div className="relative overflow-hidden rounded-[6px] border border-border-strong bg-[color-mix(in_oklab,var(--color-surface)_96%,var(--color-primary-subtle))] shadow-paper ring-1 ring-foreground/[0.03]">
       {scanning && (
         <motion.div
           className="pointer-events-none absolute inset-x-0 z-30 h-10 -translate-y-full"
@@ -164,6 +164,7 @@ function CMS1500({ claim, scanning = false, focus = [], focusLabel }) {
                   <th className="border-b border-border px-2.5 py-2 font-semibold">Date(s)</th>
                   <th className="border-b border-border px-2.5 py-2 font-semibold">POS</th>
                   <th className="border-b border-border px-2.5 py-2 font-semibold">CPT/HCPCS</th>
+                  <th className="border-b border-border px-2.5 py-2 font-semibold">Mod</th>
                   <th className="border-b border-border px-2.5 py-2 font-semibold">Dx ptr</th>
                   <th className="border-b border-border px-2.5 py-2 font-semibold">Units</th>
                   <th className="border-b border-border px-2.5 py-2 text-right font-semibold">Charges</th>
@@ -174,6 +175,7 @@ function CMS1500({ claim, scanning = false, focus = [], focusLabel }) {
                   <td className="px-2.5 py-2 tabular-nums">{fmtDate(c.dateOfService)}</td>
                   <td className="px-2.5 py-2 tabular-nums">{c.dateOfService ? '11' : '—'}</td>
                   <td className="px-2.5 py-2 font-medium tabular-nums">{cpt || '—'}</td>
+                  <td className="px-2.5 py-2 tabular-nums">—</td>
                   <td className="px-2.5 py-2 tabular-nums">{dx ? 'A' : '—'}</td>
                   <td className="px-2.5 py-2 tabular-nums">{cpt ? '1' : '—'}</td>
                   <td className="px-2.5 py-2 text-right font-medium tabular-nums">{billed}</td>
