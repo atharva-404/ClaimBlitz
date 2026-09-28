@@ -28,6 +28,16 @@ function formatValue(key, value) {
   return String(value)
 }
 
+/*
+ * Some drafts (e.g. the WhatsApp message) arrive with literal escaped "\n"
+ * sequences rather than real newlines. Convert those to real line breaks for
+ * display and copy. Real newline characters are left untouched, so this is safe
+ * to apply uniformly and never double-converts.
+ */
+function normalizeNewlines(s) {
+  return typeof s === 'string' ? s.replace(/\\n/g, '\n') : (s ?? '')
+}
+
 /**
  * Generated outputs — Lovable visual, REAL data from useClaimAgent results:
  * email / whatsapp drafts, claim summary (claimData) and agent findings.
@@ -38,9 +48,11 @@ export function GeneratedOutput({ results, onSubmit }) {
   const [copied, setCopied] = useState(false)
 
   const high = (results.riskLabel || '').toUpperCase() === 'HIGH'
+  const emailText = normalizeNewlines(results.email)
+  const whatsappText = normalizeNewlines(results.whatsapp)
   const copyText =
-    tab === 'email' ? results.email || '' :
-    tab === 'whatsapp' ? results.whatsapp || '' :
+    tab === 'email' ? emailText :
+    tab === 'whatsapp' ? whatsappText :
     tab === 'findings' ? JSON.stringify(results.findings, null, 2) :
     JSON.stringify(results.claimData, null, 2)
 
@@ -137,7 +149,7 @@ export function GeneratedOutput({ results, onSubmit }) {
             {(tab === 'email' || tab === 'whatsapp') && (
               <div className="rounded-md border border-border bg-surface-muted p-4">
                 <pre className="whitespace-pre-wrap font-mono text-xs leading-relaxed text-muted-foreground">
-                  {tab === 'email' ? results.email : results.whatsapp}
+                  {tab === 'email' ? emailText : whatsappText}
                 </pre>
               </div>
             )}

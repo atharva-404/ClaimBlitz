@@ -133,7 +133,7 @@ export function useClaimAgent() {
     setAgents(AGENT_STEPS.map(a => ({ ...a, status: 'idle', logs: [] })))
     setCurrentStep(-1)
 
-    addTerminalLog('[SYSTEM] Binary Blitz Agent Pipeline — INITIALIZING')
+    addTerminalLog('[SYSTEM] ClaimBitz Agent Pipeline — INITIALIZING')
     addTerminalLog(`[SYSTEM] Connected to backend: ${API_BASE_URL}`)
     addTerminalLog('─'.repeat(50))
 
