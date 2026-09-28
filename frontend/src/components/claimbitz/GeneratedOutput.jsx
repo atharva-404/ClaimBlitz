@@ -1,14 +1,27 @@
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { AlertTriangle, Check, CheckCircle2, Copy, Mail, MessageSquare, FileText, ClipboardList } from 'lucide-react'
+import { AlertTriangle, Check, CheckCircle2, Copy } from 'lucide-react'
 import { cn } from '../../lib/utils'
 
 const TABS = [
-  { id: 'email', label: 'Email', Icon: Mail },
-  { id: 'whatsapp', label: 'WhatsApp', Icon: MessageSquare },
-  { id: 'summary', label: 'Summary', Icon: FileText },
-  { id: 'findings', label: 'Findings', Icon: ClipboardList },
+  { id: 'email', label: 'Email' },
+  { id: 'whatsapp', label: 'WhatsApp' },
+  { id: 'summary', label: 'Summary' },
+  { id: 'findings', label: 'Findings' },
 ]
+
+/*
+ * Split a message (email/WhatsApp draft) into readable paragraph blocks on blank
+ * lines. Single newlines inside a block are preserved via `whitespace-pre-line`.
+ * Presentation only — the underlying text (already newline-normalized) is
+ * unchanged and copy still uses the full original string.
+ */
+function toBlocks(text) {
+  return String(text || '')
+    .split(/\n{2,}/)
+    .map((b) => b.trim())
+    .filter(Boolean)
+}
 
 const VERDICT = {
   approve: 'bg-success-subtle text-success',
@@ -103,7 +116,7 @@ export function GeneratedOutput({ results, onSubmit }) {
             aria-selected={tab === t.id}
             onClick={() => setTab(t.id)}
             className={cn(
-              'relative inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors',
+              'relative rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors',
               tab === t.id ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
             )}
           >
@@ -114,10 +127,7 @@ export function GeneratedOutput({ results, onSubmit }) {
                 transition={{ type: 'spring', stiffness: 420, damping: 34 }}
               />
             )}
-            <span className="relative flex items-center gap-1.5">
-              <t.Icon className="h-3.5 w-3.5" />
-              {t.label}
-            </span>
+            <span className="relative">{t.label}</span>
           </button>
         ))}
       </div>
@@ -147,10 +157,18 @@ export function GeneratedOutput({ results, onSubmit }) {
             className="max-h-[320px] overflow-y-auto"
           >
             {(tab === 'email' || tab === 'whatsapp') && (
-              <div className="rounded-md border border-border bg-surface-muted p-4">
-                <pre className="whitespace-pre-wrap font-mono text-xs leading-relaxed text-muted-foreground">
-                  {tab === 'email' ? emailText : whatsappText}
-                </pre>
+              <div className="space-y-3">
+                {toBlocks(tab === 'email' ? emailText : whatsappText).map((para, i) => (
+                  <p
+                    key={i}
+                    className={cn(
+                      'whitespace-pre-line text-[14.5px] leading-relaxed',
+                      i === 0 ? 'font-semibold text-foreground' : 'text-muted-foreground',
+                    )}
+                  >
+                    {para}
+                  </p>
+                ))}
               </div>
             )}
 

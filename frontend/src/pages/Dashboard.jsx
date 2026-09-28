@@ -125,10 +125,10 @@ export default function Dashboard() {
             {/* Demo mode toggle (real hook demo mode) */}
             <label
               title="Demo mode loads a built-in sample claim instead of calling the backend."
-              className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-md border border-dashed border-warning/40 bg-warning-subtle pl-2.5 pr-3 text-xs font-semibold uppercase tracking-wide text-warning"
+              className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-md border border-dashed border-warning/40 bg-warning/5 pl-2.5 pr-3 text-xs font-semibold uppercase tracking-wide text-warning"
             >
               <FlaskConical className="h-3.5 w-3.5" aria-hidden />
-              <span className="hidden md:inline">Demo</span>
+              <span className="hidden md:inline">Demo mode</span>
               <button
                 type="button"
                 role="switch"
