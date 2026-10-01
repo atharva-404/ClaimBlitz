@@ -136,14 +136,14 @@ export function GeneratedOutput({ results, onSubmit }) {
         <div
           className={cn(
             'mb-4 flex items-center gap-2 rounded-md border px-3.5 py-2.5',
-            high ? 'border-warning/30 bg-warning-subtle' : 'border-success/25 bg-success-subtle',
+            high ? 'border-warning/30 bg-warning/10' : 'border-success/25 bg-success-subtle',
           )}
         >
           {high ? <AlertTriangle className="h-4 w-4 text-warning" /> : <CheckCircle2 className="h-4 w-4 text-success" />}
           <p className="text-[13px] font-medium text-foreground">
             {high
-              ? `Claim processed · ${Math.round((results.riskScore || 0) * 100)}% risk · human review recommended`
-              : `Claim processed · recommendation ${results.recommendation || 'APPROVE'}`}
+              ? `Claim processed · ${Math.round((results.riskScore || 0) * 100)}% risk exceeds the threshold · human review required`
+              : `Claim processed successfully · recommendation ${results.recommendation || 'APPROVE'}`}
           </p>
         </div>
 
