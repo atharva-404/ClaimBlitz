@@ -108,7 +108,7 @@ export function GeneratedOutput({ results, onSubmit }) {
         </div>
       </header>
 
-      <div className="flex gap-1 border-b border-border bg-surface-muted px-3 py-2" role="tablist">
+      <div className="flex gap-1 overflow-x-auto border-b border-border bg-surface-muted px-3 py-2" role="tablist">
         {TABS.map((t) => (
           <button
             key={t.id}

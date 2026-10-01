@@ -53,8 +53,8 @@ export function ProcessingLogs({ logs = [], state = 'idle' }) {
         className="flex w-full items-center justify-between gap-3 px-5 py-3.5 text-left transition-colors hover:bg-surface-muted"
         aria-expanded={open}
       >
-        <span className="flex items-center gap-2.5">
-          <Terminal className="h-4 w-4 text-muted-foreground" />
+        <span className="flex min-w-0 items-center gap-2.5">
+          <Terminal className="h-4 w-4 shrink-0 text-muted-foreground" />
           <span className="whitespace-nowrap text-[15px] font-semibold text-foreground">Processing logs</span>
           <span className="rounded bg-surface-muted px-1.5 py-0.5 text-xs font-medium tabular-nums text-muted-foreground">
             {logs.length}<span className="hidden sm:inline"> events</span>
