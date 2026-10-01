@@ -199,7 +199,7 @@ export default function Dashboard() {
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: 0.2, ease: 'easeOut' }}
+                  transition={{ duration: 0.45, delay: 0.6, ease: 'easeOut' }}
                   className="space-y-5"
                 >
                   <RiskPanel
@@ -388,7 +388,7 @@ function CommandPanel({
           className={cn('h-full origin-left', bar)}
           initial={false}
           animate={{ scaleX: barPct }}
-          transition={{ duration: status === 'processing' ? 0.3 : 0.5, ease: 'linear' }}
+          transition={{ duration: status === 'processing' ? 0.12 : 0.5, ease: 'linear' }}
         />
       </div>
     </section>
