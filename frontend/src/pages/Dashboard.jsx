@@ -1,4 +1,4 @@
-import React, { useRef } from 'react'
+import React, { useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Link, useNavigate } from 'react-router-dom'
 import {
@@ -175,7 +175,7 @@ export default function Dashboard() {
         />
 
         {status === 'empty' ? (
-          <EmptyState onBrowse={() => fileInputRef.current?.click()} />
+          <EmptyState onBrowse={() => fileInputRef.current?.click()} onDrop={onDrop} />
         ) : (
           <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-12 lg:items-start">
             <div className="min-w-0 space-y-5 lg:col-span-8">
@@ -449,7 +449,8 @@ function ErrorState({ message, onRetry }) {
   )
 }
 
-function EmptyState({ onBrowse }) {
+function EmptyState({ onBrowse, onDrop }) {
+  const [drag, setDrag] = useState(false)
   return (
     <div className="mx-auto max-w-2xl py-12">
       <motion.div
@@ -465,7 +466,15 @@ function EmptyState({ onBrowse }) {
         <p className="mx-auto mt-2 max-w-md text-[14.5px] leading-relaxed text-muted-foreground">
           Upload a CMS-1500 claim document to start the agent pipeline. Supported formats: PDF, PNG, JPG, JPEG.
         </p>
-        <div className="mt-7 rounded-lg border border-dashed border-border-strong bg-surface-muted px-6 py-10">
+        <div
+          className={cn(
+            'mt-7 rounded-lg border border-dashed px-6 py-10 transition-colors',
+            drag ? 'border-primary bg-primary-subtle' : 'border-border-strong bg-surface-muted',
+          )}
+          onDragOver={(e) => { e.preventDefault(); setDrag(true) }}
+          onDragLeave={() => setDrag(false)}
+          onDrop={(e) => { e.preventDefault(); setDrag(false); onDrop?.(e) }}
+        >
           <p className="text-[14.5px] font-semibold text-foreground">Drop a CMS-1500 claim here</p>
           <p className="mt-1 text-[13px] text-muted-foreground">or use demo mode from the header</p>
           <button
