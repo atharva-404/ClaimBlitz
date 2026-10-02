@@ -34,22 +34,35 @@ function deriveAction(recommendation, riskLabel) {
       description: 'The claim passed automated review with no blocking findings. Continue to the insurer portal to prepare the submission.',
       tone: 'success',
       actions: ['portal'],
+      workflow: null,
     }
   }
   if (rec === 'REJECT' || label === 'HIGH') {
     return {
       heading: 'Human review required',
-      description: 'The claim exceeds the automated approval threshold. Review the findings and generated communications before deciding on next steps.',
+      description: 'The claim exceeds the automated approval threshold. A human reviewer must evaluate the flagged findings before the claim can proceed.',
       tone: 'destructive',
       actions: ['communications', 'reprocess'],
+      workflow: [
+        'Review the flagged findings above',
+        'Copy or export the generated communications below',
+        'A reviewer evaluates the findings and makes a decision (external)',
+        'Re-process the claim if corrections are made',
+      ],
     }
   }
   // MEDIUM / REVIEW
   return {
     heading: 'Review and clarification needed',
-    description: 'Some findings require attention before the claim can proceed. Generate a clarification request or re-process after addressing the concerns.',
+    description: 'Some findings require attention. Review the communications generated for the provider, then re-process once any clarification is received.',
     tone: 'warning',
     actions: ['communications', 'portal', 'reprocess'],
+    workflow: [
+      'Review the flagged findings above',
+      'Copy or export the clarification request below',
+      'Send the clarification to the provider (external)',
+      'Upload the corrected or clarified claim and re-process',
+    ],
   }
 }
 
@@ -148,6 +161,31 @@ export function ResolutionLayer({
               </motion.li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {/* Workflow guidance — MEDIUM/HIGH only */}
+      {action.workflow && (
+        <div className="border-b border-border px-5 py-4">
+          <p className="eyebrow mb-2">Recommended workflow</p>
+          <ol className="space-y-1.5">
+            {action.workflow.map((step, i) => {
+              const isExternal = step.includes('(external)')
+              return (
+                <li key={i} className="flex items-start gap-2.5 text-[13px]">
+                  <span className={cn(
+                    'mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full text-[10px] font-bold',
+                    isExternal ? 'border border-border-strong bg-surface-muted text-subtle-foreground' : 'bg-primary-subtle text-accent-foreground',
+                  )}>
+                    {i + 1}
+                  </span>
+                  <span className={cn('leading-relaxed', isExternal ? 'text-subtle-foreground' : 'text-muted-foreground')}>
+                    {step}
+                  </span>
+                </li>
+              )
+            })}
+          </ol>
         </div>
       )}
 
