@@ -92,7 +92,7 @@ export default function InsurerPortalPage() {
     return () => clearInterval(timer)
   }, [claim, autoFill, insurerId])
 
-  const statusLabel = isFilling ? 'Auto-filling…' : isComplete ? 'Submitted' : 'Ready'
+  const statusLabel = isFilling ? 'Auto-filling…' : isComplete ? 'Ready to submit' : 'Ready'
   const statusTone = isFilling ? 'bg-primary-subtle text-accent-foreground' : isComplete ? 'bg-success-subtle text-success' : 'bg-surface-muted text-muted-foreground'
 
   return (
@@ -155,7 +155,7 @@ export default function InsurerPortalPage() {
             ) : (
               <CheckCircle2 className={cn('h-4 w-4', isComplete ? 'text-success' : 'text-subtle-foreground')} />
             )}
-            {isFilling ? 'Agent is auto-filling the portal form…' : isComplete ? 'Portal form filled successfully' : 'Ready to auto-fill'}
+            {isFilling ? 'Agent is auto-filling the portal form…' : isComplete ? 'Form prepared — ready for manual submission' : 'Ready to auto-fill'}
           </div>
           {isComplete && (
             <div className="rounded-md border border-success/30 bg-success-subtle px-3 py-1.5 text-sm font-semibold text-success">
