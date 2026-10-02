@@ -7,6 +7,7 @@ imported by a parent app that mounts it under a prefix.
 
 from __future__ import annotations
 
+import os
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -24,6 +25,24 @@ async def lifespan(app: FastAPI):
     # Shutdown: cleanup would go here (close LLM client, Pinecone, Redis)
 
 
+def _cors_origins() -> list[str]:
+    """Build allowed origins list from environment.
+
+    FRONTEND_URL  — the Vercel production/preview URL (required in prod).
+    Localhost dev origins are always included so local development works
+    without setting FRONTEND_URL.
+    """
+    origins = [
+        "http://localhost:5173",   # Vite dev server
+        "http://localhost:4173",   # Vite preview
+        "http://localhost:3000",
+    ]
+    frontend_url = os.getenv("FRONTEND_URL", "").strip().rstrip("/")
+    if frontend_url and frontend_url not in origins:
+        origins.append(frontend_url)
+    return origins
+
+
 def create_app() -> FastAPI:
     """Application factory."""
     app = FastAPI(
@@ -36,11 +55,11 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # CORS for frontend dev server
+    # CORS — production-safe: explicit frontend origins, not "*"
     from fastapi.middleware.cors import CORSMiddleware
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=_cors_origins(),
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -52,5 +71,5 @@ def create_app() -> FastAPI:
     return app
 
 
-# Module-level instance for ``uvicorn agentcore.api.app:app``
+# Module-level instance for ``uvicorn main:app`` / ``uvicorn agentcore.api.app:app``
 app = create_app()
