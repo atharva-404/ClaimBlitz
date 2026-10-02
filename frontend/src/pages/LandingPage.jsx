@@ -471,12 +471,12 @@ export default function LandingPage() {
         <section className="border-b border-border">
           <div className="mx-auto grid max-w-[1240px] gap-10 px-5 pb-14 pt-10 lg:grid-cols-[0.8fr_1.2fr] lg:items-center lg:pt-14">
             <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}>
-              <p className="eyebrow !text-accent-foreground">Read. Validate. Decide.</p>
+              <p className="eyebrow !text-accent-foreground">Read. Validate. Decide. Resolve.</p>
               <h1 className="mt-4 text-[clamp(2.3rem,3.8vw,3.4rem)] font-semibold leading-[1.05] tracking-[-0.035em] text-foreground">
-                Medical claim processing, reviewed in seconds.
+                Medical claim processing, reviewed and resolved in seconds.
               </h1>
               <p className="mt-4 max-w-md text-[16px] leading-relaxed text-muted-foreground">
-                ClaimBitz turns a CMS-1500 into an auditable claim decision.
+                ClaimBitz turns a CMS-1500 into an intelligent, explainable, and actionable claims workflow.
               </p>
               <div className="mt-6 flex flex-wrap items-center gap-3">
                 <Link
@@ -522,8 +522,8 @@ export default function LandingPage() {
         {/* WORKFLOW */}
         <section id="how-it-works" className="scroll-mt-16 border-b border-border">
           <div className="mx-auto max-w-[1240px] px-5 py-16">
-            <SectionHead eyebrow="How it works" title="One claim, five stages, one decision.">
-              Nine agents hand the claim forward. Each stage adds evidence the next one uses.
+            <SectionHead eyebrow="How it works" title="From claim to resolution in five stages.">
+              Eight agents analyze the claim in sequence. Each stage produces evidence, findings, and a recommended action.
             </SectionHead>
             <Workflow />
           </div>
