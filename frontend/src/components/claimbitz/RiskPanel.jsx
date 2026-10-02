@@ -65,11 +65,13 @@ export function RiskPanel({ score = 0, label, recommendation, reasons = [], onSu
               onClick={onSubmit}
               className={cn(
                 'mt-3 inline-flex h-9 items-center gap-1.5 rounded-md px-3.5 text-[13px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.98]',
-                'bg-primary text-white hover:bg-primary-hover',
+                band.high
+                  ? 'border border-border bg-surface text-foreground hover:bg-surface-muted'
+                  : 'bg-primary text-white hover:bg-primary-hover',
               )}
             >
               <Send className="h-4 w-4" />
-              Submit claim
+              {band.high ? 'Review before submission' : 'Continue to submission'}
             </button>
           </div>
         </div>
