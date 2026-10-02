@@ -438,6 +438,11 @@ class ClaimWorkflowState(BaseModel):
     debate_rounds: list[DebateRound] = Field(default_factory=list)
     ruling: JudgeRuling | None = None
     escalation: HumanEscalation | None = None
+    # Additive, non-breaking: the serialized Master Claim Form and decomposed
+    # RiskBreakdown. Kept as plain dicts so protocol.py never imports
+    # claim_model types at class-definition time (avoids an import cycle).
+    master_form: dict[str, Any] | None = None
+    risk_breakdown: dict[str, Any] | None = None
     decision_path: DecisionPath
     started_at: datetime = Field(default_factory=now_utc)
     updated_at: datetime = Field(default_factory=now_utc)
@@ -489,4 +494,90 @@ __all__ = [
     "routing_key",
     "new_id",
     "now_utc",
+]
+
+
+# ---------------------------------------------------------------------------
+# Master Claim Form re-export (design §3)
+#
+# The Master Claim Form schema lives in its own module (agentcore/claim_model)
+# so protocol.py keeps its single responsibility as the agent wire protocol.
+# Re-exporting the public symbols here means existing call sites can keep
+# doing `from .protocol import MasterClaimForm`. This import is at the very
+# bottom (after everything above is defined) so claim_model — which imports
+# AgentRole back from this module — resolves without a cycle.
+# ---------------------------------------------------------------------------
+
+from .claim_model import (  # noqa: E402  (intentional late import, see above)
+    AGENT_DISPLAY_NAMES,
+    Billing,
+    BillingFlag,
+    BillingLine,
+    ClaimInfo,
+    ClaimStandard,
+    Clinical,
+    ConflictingValue,
+    CoverageStatus,
+    DocPresence,
+    FieldProvenance,
+    FieldStatus,
+    Hospitalization,
+    InvestigationItem,
+    Investigations,
+    Jurisdiction,
+    JurisdictionProfile,
+    MasterClaimForm,
+    MedicationItem,
+    Medications,
+    Patient,
+    Policy,
+    PolicyStatus,
+    ProcedureItem,
+    Procedures,
+    Provider,
+    RiskBreakdown,
+    RiskDimension,
+    SupportingDocuments,
+    build_empty_master_form,
+    field_conflict,
+    field_missing,
+    field_present,
+    infer_jurisdiction,
+)
+
+__all__ += [
+    "FieldStatus",
+    "ConflictingValue",
+    "FieldProvenance",
+    "PolicyStatus",
+    "CoverageStatus",
+    "BillingFlag",
+    "ClaimInfo",
+    "Patient",
+    "Policy",
+    "Provider",
+    "Hospitalization",
+    "Clinical",
+    "ProcedureItem",
+    "Procedures",
+    "InvestigationItem",
+    "Investigations",
+    "MedicationItem",
+    "Medications",
+    "BillingLine",
+    "Billing",
+    "DocPresence",
+    "SupportingDocuments",
+    "Jurisdiction",
+    "ClaimStandard",
+    "JurisdictionProfile",
+    "infer_jurisdiction",
+    "MasterClaimForm",
+    "RiskDimension",
+    "RiskBreakdown",
+    "AGENT_DISPLAY_NAMES",
+    "field_missing",
+    "field_present",
+    "field_conflict",
+    "build_empty_master_form",
 ]
