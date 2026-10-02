@@ -8,20 +8,18 @@ import { cn } from '../../lib/utils'
 
 const SHOWN = 7
 const STEP_MS = 850
-const HOLD_MS = 1400
 
 /**
- * Landing-page product demo (marketing only). Loops through agents, then shows
- * a completed claim, then restarts. Uses DEMO_AGENTS/DEMO_CLAIM — never real data.
+ * Landing-page product demo (marketing only). Steps through agents once,
+ * then holds the completed claim. Uses DEMO_AGENTS/DEMO_CLAIM — never real data.
+ * A full page reload restarts the sequence.
  */
 export function WorkspacePreview() {
   const [step, setStep] = useState(0) // 0..SHOWN-1 processing, SHOWN = complete
 
   useEffect(() => {
-    const t = window.setTimeout(
-      () => setStep((s) => (s >= SHOWN ? 0 : s + 1)),
-      step >= SHOWN ? HOLD_MS : STEP_MS,
-    )
+    if (step >= SHOWN) return // done — hold final state
+    const t = window.setTimeout(() => setStep((s) => s + 1), STEP_MS)
     return () => window.clearTimeout(t)
   }, [step])
 
