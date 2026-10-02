@@ -127,7 +127,7 @@ export default function SubmissionPage() {
                 <h3 className="mt-4 text-base font-semibold text-foreground">{insurer.name}</h3>
                 <p className="mt-0.5 text-sm text-muted-foreground">{insurer.tagline}</p>
                 <p className="mt-3 flex-1 text-xs leading-relaxed text-subtle-foreground">
-                  Opens the portal, maps extracted fields, auto-fills the form and generates an application number.
+                  Opens the portal and auto-fills fields from the processed claim. You submit manually from within the portal.
                 </p>
                 <button
                   disabled={!claimSnapshot}

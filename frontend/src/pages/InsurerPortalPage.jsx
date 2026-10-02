@@ -155,11 +155,11 @@ export default function InsurerPortalPage() {
             ) : (
               <CheckCircle2 className={cn('h-4 w-4', isComplete ? 'text-success' : 'text-subtle-foreground')} />
             )}
-            {isFilling ? 'Agent is auto-filling the portal form…' : isComplete ? 'Form prepared — ready for manual submission' : 'Ready to auto-fill'}
+            {isFilling ? 'Agent is auto-filling the portal form…' : isComplete ? 'Form prepared — review fields, then submit manually through the portal' : 'Ready to auto-fill'}
           </div>
           {isComplete && (
             <div className="rounded-md border border-success/30 bg-success-subtle px-3 py-1.5 text-sm font-semibold text-success">
-              Application #: {appNumber}
+              Reference #: {appNumber}
             </div>
           )}
         </section>
