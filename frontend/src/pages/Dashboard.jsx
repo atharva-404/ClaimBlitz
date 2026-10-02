@@ -59,7 +59,7 @@ export default function Dashboard() {
   const navigate = useNavigate()
   const {
     agents, currentStep, isProcessing, isComplete,
-    results, riskScore, demoMode, setDemoMode,
+    results, riskScore, demoMode, setDemoMode, demoScenario, setDemoScenario,
     terminalLogs, uploadedFile, errorMessage, handleUpload, process, reset,
   } = useClaimAgent()
   const fileInputRef = useRef(null)
@@ -143,6 +143,31 @@ export default function Dashboard() {
                 />
               </button>
             </label>
+
+            {/* Demo risk scenario selector — only visible when demo mode is on */}
+            {demoMode && !isProcessing && (
+              <div className="hidden items-center gap-1 rounded-md border border-dashed border-warning/40 bg-warning/5 p-1 sm:flex">
+                {[
+                  { id: 'low', label: 'Low', tone: 'text-success' },
+                  { id: 'medium', label: 'Med', tone: 'text-warning' },
+                  { id: 'high', label: 'High', tone: 'text-destructive' },
+                ].map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => setDemoScenario(s.id)}
+                    className={cn(
+                      'rounded px-2 py-1 text-[11px] font-semibold uppercase tracking-wide transition-colors',
+                      demoScenario === s.id
+                        ? `${s.tone} bg-surface shadow-sm`
+                        : 'text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            )}
 
             {(isComplete || status === 'error') && (
               <button

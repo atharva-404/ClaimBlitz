@@ -16,6 +16,7 @@ const LATEST_CLAIM_KEY = 'binaryblitz.latestClaim'
 
 export function useClaimAgent() {
   const [demoMode, setDemoMode] = useState(false)
+  const [demoScenario, setDemoScenario] = useState('low') // 'low' | 'medium' | 'high'
   const [agents, setAgents] = useState(
     AGENT_STEPS.map(a => ({
       ...a,
@@ -55,39 +56,63 @@ export function useClaimAgent() {
     setTerminalLogs(prev => [...prev, { text: log, timestamp: new Date().toLocaleTimeString() }])
   }, [])
 
-  const getDemoPayload = useCallback(() => ({
-    claimData: {
-      patientName: 'Rahul Sharma',
-      dob: '1985-03-14',
-      policyNumber: 'SH-IND-884512',
-      diagnosisCode: 'J18.9',
-      diagnosisDesc: 'Pneumonia, unspecified organism',
-      cptCode: '99213',
-      provider: 'APOLLO SPECIALITY HOSPITAL',
-      totalBilled: 145000,
-      approvedAmount: 123250,
-      patientResponsibility: 21750,
-      dateOfService: '2026-04-10',
-    },
-    riskScore: 0.24,
-    riskLabel: 'LOW',
-    recommendation: 'APPROVE',
-    riskReasons: ['No major anomalies detected', 'Provider is in-network', 'Valid ICD and CPT format'],
-    extractionIssues: [],
-    extractionTextPreview: 'Demo claim text preview',
-    riskModel: {
-      baseScore: 0.1,
-      maxIssuePenalty: 0.3,
-      issuePenaltyPerItem: 0.06,
-      thresholds: { lowMax: 0.3, mediumMax: 0.6, highMax: 1.0 },
-      contributions: [
-        { rule: 'slight_approval_variance', delta: 0.1, reason: 'Slight variance between approved and billed amount' },
-        { rule: 'provider_in_network_bonus', delta: 0.04, reason: 'Provider appears in network reference list' },
-      ],
-    },
-    email: `Subject: Claim Review Update — Policy #SH-IND-884512\n\nDear Policyholder,\n\nYour medical claim has been processed successfully.\n\nDecision: APPROVE\nRisk Level: LOW\nApproved Amount: ₹1,23,250.00\nPatient Responsibility: ₹21,750.00\n\nBest regards,\nClaimBitz Claim Agent`,
-    whatsapp: 'Claim Status Update\\n\\nProvider: APOLLO SPECIALITY HOSPITAL\\nDiagnosis: J18.9\\nApproved: ₹1,23,250.00\\nYour Cost: ₹21,750.00\\nDecision: APPROVE (LOW)\\nRisk Score: 0.24',
-  }), [])
+  const getDemoPayload = useCallback(() => {
+    const base = {
+      claimData: {
+        patientName: 'Rahul Sharma',
+        dob: '1985-03-14',
+        policyNumber: 'SH-IND-884512',
+        diagnosisCode: 'J18.9',
+        diagnosisDesc: 'Pneumonia, unspecified organism',
+        cptCode: '99213',
+        provider: 'APOLLO SPECIALITY HOSPITAL',
+        totalBilled: 145000,
+        approvedAmount: 123250,
+        patientResponsibility: 21750,
+        dateOfService: '2026-04-10',
+      },
+      extractionIssues: [],
+      extractionTextPreview: 'Demo claim text preview',
+    }
+    if (demoScenario === 'high') {
+      return {
+        ...base,
+        riskScore: 0.42,
+        riskLabel: 'HIGH',
+        recommendation: 'REVIEW',
+        riskReasons: ['Modifier 25 usage flagged', 'Billing frequency above expected range', 'Policy match is partial'],
+        riskModel: { baseScore: 0.2, maxIssuePenalty: 0.5, issuePenaltyPerItem: 0.1, thresholds: { lowMax: 0.3, mediumMax: 0.6, highMax: 1.0 }, contributions: [{ rule: 'modifier_25_flag', delta: 0.12, reason: 'Modifier 25 flagged for review' }, { rule: 'billing_frequency', delta: 0.1, reason: 'Billing frequency above expected range' }] },
+        findings: [{ agent: 'medical_expert', verdict: 'flag', confidence: 0.72, reasoning: 'Modifier 25 usage on E&M with bundled procedure — requires review' }, { agent: 'fraud_detection', verdict: 'flag', confidence: 0.65, reasoning: 'Billing frequency above expected 180-day range for this subscriber/provider pair' }, { agent: 'policy_expert', verdict: 'flag', confidence: 0.78, reasoning: 'Partial policy match — coverage exception possible' }],
+        email: `Subject: Claim Review Required — Policy #SH-IND-884512\n\nDear Policyholder,\n\nYour medical claim requires additional review.\n\nDecision: HUMAN REVIEW\nRisk Level: HIGH (42%)\nBilled Amount: ₹1,45,000.00\n\nA reviewer will contact you within 2 business days.\n\nBest regards,\nClaimBitz Claim Agent`,
+        whatsapp: 'Claim Status Update\\n\\nProvider: APOLLO SPECIALITY HOSPITAL\\nDiagnosis: J18.9\\nBilled: ₹1,45,000.00\\nDecision: HUMAN REVIEW (HIGH)\\nRisk Score: 0.42\\n\\nA reviewer will be in touch.',
+      }
+    }
+    if (demoScenario === 'medium') {
+      return {
+        ...base,
+        riskScore: 0.45,
+        riskLabel: 'MEDIUM',
+        recommendation: 'REVIEW',
+        riskReasons: ['Slight diagnosis-procedure mismatch', 'Provider billing pattern under monitoring'],
+        riskModel: { baseScore: 0.15, maxIssuePenalty: 0.4, issuePenaltyPerItem: 0.08, thresholds: { lowMax: 0.3, mediumMax: 0.6, highMax: 1.0 }, contributions: [{ rule: 'dx_procedure_mismatch', delta: 0.18, reason: 'Slight diagnosis-procedure mismatch detected' }, { rule: 'provider_monitoring', delta: 0.12, reason: 'Provider billing pattern under monitoring' }] },
+        findings: [{ agent: 'medical_expert', verdict: 'flag', confidence: 0.80, reasoning: 'Diagnosis J18.9 and CPT 99213 — plausible but warrants review' }, { agent: 'fraud_detection', verdict: 'approve', confidence: 0.85, reasoning: 'No significant anomalies detected' }, { agent: 'risk_assessment', verdict: 'flag', confidence: 0.75, reasoning: 'Medium risk — manual review recommended' }],
+        email: `Subject: Claim Under Review — Policy #SH-IND-884512\n\nDear Policyholder,\n\nYour medical claim is under review.\n\nDecision: REVIEW\nRisk Level: MEDIUM (45%)\nApproved Amount: Pending\n\nBest regards,\nClaimBitz Claim Agent`,
+        whatsapp: 'Claim Status Update\\n\\nProvider: APOLLO SPECIALITY HOSPITAL\\nDiagnosis: J18.9\\nBilled: ₹1,45,000.00\\nDecision: REVIEW (MEDIUM)\\nRisk Score: 0.45',
+      }
+    }
+    // low (default)
+    return {
+      ...base,
+      riskScore: 0.24,
+      riskLabel: 'LOW',
+      recommendation: 'APPROVE',
+      riskReasons: ['No major anomalies detected', 'Provider is in-network', 'Valid ICD and CPT format'],
+      riskModel: { baseScore: 0.1, maxIssuePenalty: 0.3, issuePenaltyPerItem: 0.06, thresholds: { lowMax: 0.3, mediumMax: 0.6, highMax: 1.0 }, contributions: [{ rule: 'slight_approval_variance', delta: 0.1, reason: 'Slight variance between approved and billed amount' }, { rule: 'provider_in_network_bonus', delta: 0.04, reason: 'Provider appears in network reference list' }] },
+      findings: [{ agent: 'scanner', verdict: 'approve', confidence: 0.95, reasoning: 'Document format valid, all pages readable' }, { agent: 'validator', verdict: 'approve', confidence: 0.92, reasoning: 'Required fields present, formats consistent' }, { agent: 'medical_expert', verdict: 'approve', confidence: 0.88, reasoning: 'Diagnosis J18.9 consistent with CPT 99213' }],
+      email: `Subject: Claim Review Update — Policy #SH-IND-884512\n\nDear Policyholder,\n\nYour medical claim has been processed successfully.\n\nDecision: APPROVE\nRisk Level: LOW\nApproved Amount: ₹1,23,250.00\nPatient Responsibility: ₹21,750.00\n\nBest regards,\nClaimBitz Claim Agent`,
+      whatsapp: 'Claim Status Update\\n\\nProvider: APOLLO SPECIALITY HOSPITAL\\nDiagnosis: J18.9\\nApproved: ₹1,23,250.00\\nYour Cost: ₹21,750.00\\nDecision: APPROVE (LOW)\\nRisk Score: 0.24',
+    }
+  }, [demoScenario])
 
   const processReal = useCallback(async () => {
     if (!uploadedFile && !demoMode) {
@@ -239,6 +264,8 @@ export function useClaimAgent() {
   return {
     demoMode,
     setDemoMode,
+    demoScenario,
+    setDemoScenario,
     agents,
     currentStep,
     isProcessing,
