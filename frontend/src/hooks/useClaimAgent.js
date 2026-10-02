@@ -114,6 +114,44 @@ export function useClaimAgent() {
     }
   }, [demoScenario])
 
+  /**
+   * Per-agent demo log messages — scenario-specific activity and result text
+   * for the sequential 8-agent demo flow. Indices match AGENT_STEPS exactly.
+   */
+  const getDemoAgentLogs = useCallback(() => {
+    const low = [
+      { activity: 'Scanning document structure…', level: 'SUCCESS', result: 'Document format valid, 2 pages detected' },
+      { activity: 'Extracting structured fields from CMS-1500…', level: 'SUCCESS', result: 'Extracted claim fields from document' },
+      { activity: 'Validating data consistency and format…', level: 'SUCCESS', result: 'Required fields present, formats consistent' },
+      { activity: 'Assessing clinical plausibility (ICD/CPT)…', level: 'SUCCESS', result: 'Diagnosis J18.9 consistent with CPT 99213' },
+      { activity: 'Checking coverage rules and exclusions…', level: 'SUCCESS', result: 'No blocking policy exceptions found' },
+      { activity: 'Analyzing fraud patterns and duplicates…', level: 'SUCCESS', result: 'No anomalies detected' },
+      { activity: 'Computing risk score and category…', level: 'DATA', result: 'Risk scored at 24% — LOW' },
+      { activity: 'Drafting policyholder messages…', level: 'SUCCESS', result: 'Payer response and notifications drafted' },
+    ]
+    const medium = [
+      { activity: 'Scanning document structure…', level: 'SUCCESS', result: 'Document format valid, 2 pages detected' },
+      { activity: 'Extracting structured fields from CMS-1500…', level: 'SUCCESS', result: 'Extracted claim fields from document' },
+      { activity: 'Validating data consistency and format…', level: 'SUCCESS', result: 'Required fields present, minor date variance noted' },
+      { activity: 'Assessing clinical plausibility (ICD/CPT)…', level: 'WARN', result: 'Slight diagnosis-procedure mismatch — review recommended' },
+      { activity: 'Checking coverage rules and exclusions…', level: 'SUCCESS', result: 'Coverage confirmed with monitoring flag' },
+      { activity: 'Analyzing fraud patterns and duplicates…', level: 'SUCCESS', result: 'No significant anomalies detected' },
+      { activity: 'Computing risk score and category…', level: 'DATA', result: 'Risk scored at 45% — MEDIUM' },
+      { activity: 'Drafting policyholder messages…', level: 'SUCCESS', result: 'Review notification drafted' },
+    ]
+    const high = [
+      { activity: 'Scanning document structure…', level: 'SUCCESS', result: 'Document format valid, 2 pages detected' },
+      { activity: 'Extracting structured fields from CMS-1500…', level: 'SUCCESS', result: 'Extracted claim fields from document' },
+      { activity: 'Validating data consistency and format…', level: 'SUCCESS', result: 'Required fields present, formats consistent' },
+      { activity: 'Assessing clinical plausibility (ICD/CPT)…', level: 'WARN', result: 'Modifier 25 usage flagged — bundled procedure concern' },
+      { activity: 'Checking coverage rules and exclusions…', level: 'WARN', result: 'Partial policy match — coverage exception possible' },
+      { activity: 'Analyzing fraud patterns and duplicates…', level: 'WARN', result: 'Billing frequency above expected range for subscriber' },
+      { activity: 'Computing risk score and category…', level: 'DATA', result: 'Risk scored at 42% — HIGH' },
+      { activity: 'Drafting policyholder messages…', level: 'SUCCESS', result: 'Human review notification drafted' },
+    ]
+    return demoScenario === 'high' ? high : demoScenario === 'medium' ? medium : low
+  }, [demoScenario])
+
   const processReal = useCallback(async () => {
     if (!uploadedFile && !demoMode) {
       addTerminalLog('[ERROR] Please upload a claim document first')
@@ -164,14 +202,21 @@ export function useClaimAgent() {
 
     try {
       markProcessing(0, demoMode && !uploadedFile
-        ? '[INFO] Scanner Agent: Loading built-in demo claim payload...'
-        : '[INFO] Scanner Agent: Uploading and processing claim through 9-agent pipeline...')
+        ? `[INFO] Scanner Agent: Starting ${demoScenario.toUpperCase()} risk demo analysis…`
+        : '[INFO] Scanner Agent: Uploading and processing claim through 8-agent pipeline...')
 
       let data
       if (demoMode && !uploadedFile) {
-        await wait(300)
+        // Demo: execute through all 8 agents sequentially
+        const demoLogs = getDemoAgentLogs()
+        for (let i = 0; i < AGENT_STEPS.length; i++) {
+          if (abortRef.current) return
+          markProcessing(i, `[INFO] ${AGENT_STEPS[i].name}: ${demoLogs[i].activity}`)
+          await wait(600 + Math.random() * 400) // 600-1000ms per agent
+          markCompleted(i, `[${demoLogs[i].level}] ${AGENT_STEPS[i].name}: ${demoLogs[i].result}`)
+          await wait(150)
+        }
         data = getDemoPayload()
-        markCompleted(0, '[SUCCESS] Scanner Agent: Demo claim payload loaded')
       } else {
         const formData = new FormData()
         formData.append('file', uploadedFile)
@@ -237,7 +282,7 @@ export function useClaimAgent() {
     } finally {
       setIsProcessing(false)
     }
-  }, [uploadedFile, demoMode, addTerminalLog, getDemoPayload, persistClaim])
+  }, [uploadedFile, demoMode, addTerminalLog, getDemoPayload, getDemoAgentLogs, persistClaim])
 
   const handleUpload = useCallback(async (file) => {
     setErrorMessage('')
