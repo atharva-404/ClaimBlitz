@@ -208,6 +208,14 @@ export function GeneratedOutput({ results, onSubmit, onAction }) {
                     {results.recommendation} · {results.riskScore} ({results.riskLabel})
                   </dd>
                 </div>
+                {results.decision?.rationale && (
+                  <div className="flex items-start justify-between gap-4 pt-3">
+                    <dt className="text-[13px] text-muted-foreground">Decision rationale</dt>
+                    <dd className="max-w-[60%] text-right text-[13px] text-foreground">
+                      {results.decision.rationale}
+                    </dd>
+                  </div>
+                )}
               </dl>
             )}
 

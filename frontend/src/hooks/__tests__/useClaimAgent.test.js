@@ -1,26 +1,53 @@
 /**
- * Tests for useClaimAgent hook to prevent regressions.
+ * Tests for useClaimAgent hook + FEAT-006 frontend refinement to prevent
+ * regressions: the 9-agent roster, logs-driven step reconciliation, the
+ * SYNTHETIC DEMO labeling, the compliance-claim scrub, and the provenance
+ * badge rendering for MISSING / CONFLICT fields.
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import React from 'react'
+import { render } from '@testing-library/react'
 
-// Since we can't use renderHook with jest-like setup, we'll test the hook's logic directly
-// by importing and calling it like the real component would
+import {
+  AGENT_STEPS,
+  SYNTHETIC_DEMO_LABEL,
+  agentsFromLogs,
+} from '../useClaimAgent'
+import { MasterClaimForm } from '../../components/claimbitz/MasterClaimForm'
 
-import { useClaimAgent, AGENT_STEPS } from '../useClaimAgent'
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const SRC_ROOT = path.resolve(__dirname, '../../')
 
-describe('useClaimAgent hook - State Structure', () => {
-  it('should export correct AGENT_STEPS', () => {
-    expect(AGENT_STEPS).toHaveLength(8)
+describe('useClaimAgent hook - AGENT_STEPS (9-agent roster)', () => {
+  it('exports exactly 9 agent steps in pipeline order', () => {
+    expect(AGENT_STEPS).toHaveLength(9)
     expect(AGENT_STEPS[0].name).toBe('Scanner Agent')
     expect(AGENT_STEPS[1].name).toBe('OCR Agent')
     expect(AGENT_STEPS[2].name).toBe('Validator Agent')
-    expect(AGENT_STEPS[7].name).toBe('Communication')
+    expect(AGENT_STEPS[8].name).toBe('Communication Agent')
   })
 
-  it('should have all required agent fields in AGENT_STEPS', () => {
+  it('includes a judge step and a clinical "Clinical Consistency Agent" step', () => {
+    const judge = AGENT_STEPS.find(a => a.id === 'judge')
+    expect(judge).toBeTruthy()
+    expect(judge.name).toBe('Judge Agent')
+
+    const clinical = AGENT_STEPS.find(a => a.id === 'clinical')
+    expect(clinical).toBeTruthy()
+    expect(clinical.name).toBe('Clinical Consistency Agent')
+
+    // The old 'medical' id is gone.
+    expect(AGENT_STEPS.find(a => a.id === 'medical')).toBeUndefined()
+  })
+
+  it('has all required agent fields in AGENT_STEPS', () => {
     AGENT_STEPS.forEach(agent => {
       expect(agent).toHaveProperty('id')
+      expect(agent).toHaveProperty('role')
       expect(agent).toHaveProperty('name')
       expect(agent).toHaveProperty('description')
       expect(agent).toHaveProperty('icon')
@@ -28,9 +55,152 @@ describe('useClaimAgent hook - State Structure', () => {
   })
 })
 
+describe('useClaimAgent hook - logs-driven step reconciliation', () => {
+  it('marks only agents present in data.logs as completed; others stay idle', () => {
+    const logs = [
+      { agent_role: 'scanner', status: 'success' },
+      { agent_role: 'ocr', status: 'success' },
+      { agent_role: 'validator', status: 'success' },
+      { agent_role: 'judge', status: 'success' },
+      { agent_role: 'communication', status: 'success' },
+    ]
+    const reconciled = agentsFromLogs(logs)
+    const byId = Object.fromEntries(reconciled.map(a => [a.id, a.status]))
+
+    expect(byId.scanner).toBe('completed')
+    expect(byId.ocr).toBe('completed')
+    expect(byId.validator).toBe('completed')
+    expect(byId.judge).toBe('completed')
+    expect(byId.comm).toBe('completed')
+
+    // Agents that did not execute are greyed out (idle), never fabricated.
+    expect(byId.clinical).toBe('idle')
+    expect(byId.policy).toBe('idle')
+    expect(byId.fraud).toBe('idle')
+    expect(byId.risk).toBe('idle')
+  })
+
+  it('marks an agent whose log status is error as error', () => {
+    const reconciled = agentsFromLogs([{ agent_role: 'ocr', status: 'error' }])
+    const ocr = reconciled.find(a => a.id === 'ocr')
+    expect(ocr.status).toBe('error')
+  })
+
+  it('returns an all-idle roster when there are no logs', () => {
+    const reconciled = agentsFromLogs([])
+    expect(reconciled).toHaveLength(9)
+    expect(reconciled.every(a => a.status === 'idle')).toBe(true)
+  })
+})
+
+describe('FEAT-006 - SYNTHETIC DEMO labeling', () => {
+  it('exports the SYNTHETIC DEMO label', () => {
+    expect(SYNTHETIC_DEMO_LABEL).toBe('SYNTHETIC DEMO')
+  })
+
+  it('renders the SYNTHETIC DEMO banner in the Master Claim Form when demoMode', () => {
+    const { container, queryByTestId } = render(
+      React.createElement(MasterClaimForm, {
+        masterClaimForm: { jurisdiction: { jurisdiction: 'IN' } },
+        demoMode: true,
+      })
+    )
+    const banner = queryByTestId('synthetic-demo-banner')
+    expect(banner).toBeTruthy()
+    expect(container.textContent).toContain('SYNTHETIC DEMO')
+  })
+
+  it('does not render the SYNTHETIC DEMO banner when not in demo mode', () => {
+    const { queryByTestId } = render(
+      React.createElement(MasterClaimForm, {
+        masterClaimForm: { jurisdiction: { jurisdiction: 'IN' } },
+      })
+    )
+    expect(queryByTestId('synthetic-demo-banner')).toBeNull()
+  })
+})
+
+describe('FEAT-006 - compliance-claim scrub (no HIPAA/DPDP/IRDAI claims)', () => {
+  function walk(dir) {
+    const out = []
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name)
+      if (entry.isDirectory()) out.push(...walk(full))
+      else out.push(full)
+    }
+    return out
+  }
+
+  it('contains no HIPAA/DPDP/IRDAI compliance-claim strings in frontend/src', () => {
+    const offenders = []
+    const pattern = /HIPAA\s*compliant|DPDP\s*compliant|IRDAI\s*certified/i
+    for (const file of walk(SRC_ROOT)) {
+      if (!/\.(js|jsx|ts|tsx|css|md|html)$/.test(file)) continue
+      const text = fs.readFileSync(file, 'utf8')
+      if (pattern.test(text)) offenders.push(path.relative(SRC_ROOT, file))
+    }
+    expect(offenders).toEqual([])
+  })
+})
+
+describe('FEAT-006 - MasterClaimForm provenance badge rendering', () => {
+  const fixture = {
+    jurisdiction: { jurisdiction: 'IN', currency: 'INR', inferred_from: 'content' },
+    patient: {
+      name: {
+        field: 'patient.name', value: 'Aarav Mehta', source_document: 'claim.pdf',
+        page: 1, confidence: 0.9, status: 'EXTRACTED', conflicts: [], note: null,
+      },
+      dob: {
+        field: 'patient.dob', value: null, source_document: null, page: null,
+        confidence: 0.0, status: 'MISSING', conflicts: [], note: null,
+      },
+    },
+    policy: {
+      policy_number: {
+        field: 'policy.policy_number', value: 'POL-1', source_document: 'a.pdf',
+        page: 2, confidence: 0.6, status: 'CONFLICT',
+        conflicts: [
+          { value: 'POL-1', source_document: 'a.pdf', page: 2, confidence: 0.6 },
+          { value: 'POL-2', source_document: 'b.pdf', page: 1, confidence: 0.55 },
+        ],
+        note: null,
+      },
+    },
+    billing: {
+      line_items: [], calculated_total: null,
+      submitted_total: { field: 'billing.submitted_total', value: null, status: 'MISSING', conflicts: [] },
+      billing_difference: null, flag: 'INSUFFICIENT_DATA',
+      currency: { field: 'billing.currency', value: 'INR', status: 'EXTRACTED', conflicts: [] },
+    },
+  }
+
+  it('renders MISSING and CONFLICT badges (fields shown, never hidden)', () => {
+    const { container } = render(React.createElement(MasterClaimForm, { masterClaimForm: fixture }))
+    const statuses = Array.from(container.querySelectorAll('[data-status]')).map(
+      el => el.getAttribute('data-status')
+    )
+    expect(statuses).toContain('MISSING')
+    expect(statuses).toContain('CONFLICT')
+    expect(statuses).toContain('EXTRACTED')
+  })
+
+  it('expands every conflicting value with its source', () => {
+    const { container } = render(React.createElement(MasterClaimForm, { masterClaimForm: fixture }))
+    expect(container.textContent).toContain('POL-1')
+    expect(container.textContent).toContain('POL-2')
+    expect(container.textContent).toContain('b.pdf')
+  })
+
+  it('shows a MISSING field value (dob) rather than hiding it', () => {
+    const { container } = render(React.createElement(MasterClaimForm, { masterClaimForm: fixture }))
+    // The humanized label is present even though the value is null.
+    expect(container.textContent).toContain('Dob')
+  })
+})
+
 describe('useClaimAgent hook - Return Value Structure', () => {
   it('should return object with all required properties', () => {
-    // Mock rendering a component that uses the hook
     const hookReturnValue = {
       demoMode: false,
       setDemoMode: () => {},
@@ -48,16 +218,13 @@ describe('useClaimAgent hook - Return Value Structure', () => {
       reset: () => {},
     }
 
-    // Verify all properties are present
     expect(hookReturnValue).toHaveProperty('demoMode')
-    expect(hookReturnValue).toHaveProperty('setDemoMode')
     expect(hookReturnValue).toHaveProperty('agents')
     expect(hookReturnValue).toHaveProperty('currentStep')
     expect(hookReturnValue).toHaveProperty('isProcessing')
     expect(hookReturnValue).toHaveProperty('isComplete')
     expect(hookReturnValue).toHaveProperty('results')
     expect(hookReturnValue).toHaveProperty('riskScore')
-    expect(hookReturnValue).toHaveProperty('errorMessage')
     expect(hookReturnValue).toHaveProperty('terminalLogs')
     expect(hookReturnValue).toHaveProperty('uploadedFile')
     expect(hookReturnValue).toHaveProperty('handleUpload')
@@ -66,115 +233,28 @@ describe('useClaimAgent hook - Return Value Structure', () => {
   })
 })
 
-describe('useClaimAgent hook - Hook Execution', () => {
+describe('useClaimAgent hook - reset semantics', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     global.fetch = vi.fn()
   })
 
-  it('should support demo mode state mutation', async () => {
-    // Test that the hook's getDemoPayload returns expected structure
-    const expectedDemoPayload = {
-      claimData: {
-        patientName: 'Rahul Sharma',
-        dob: '1985-03-14',
-        policyNumber: 'SH-IND-884512',
-        diagnosisCode: 'J18.9',
-        diagnosisDesc: 'Pneumonia, unspecified organism',
-        cptCode: '99213',
-        provider: 'APOLLO SPECIALITY HOSPITAL',
-        totalBilled: 145000,
-        approvedAmount: 123250,
-        patientResponsibility: 21750,
-        dateOfService: '2026-04-10',
-      },
-      riskScore: 0.24,
-      riskLabel: 'LOW',
-      recommendation: 'APPROVE',
-      email: expect.stringContaining('Subject:'),
-      whatsapp: expect.stringContaining('Claim Status Update'),
-    }
-
-    // Verify structure matches what's expected in demo mode
-    expect(expectedDemoPayload.claimData).toHaveProperty('patientName', 'Rahul Sharma')
-    expect(expectedDemoPayload.riskScore).toBe(0.24)
-    expect(expectedDemoPayload.riskLabel).toBe('LOW')
-    expect(expectedDemoPayload.recommendation).toBe('APPROVE')
-  })
-
-  it('should define process function that handles errors gracefully', () => {
-    const mockErrorHandler = vi.fn()
-    // Simulate the hook's error handling pattern
-    try {
-      throw new Error('Test API error')
-    } catch (error) {
-      mockErrorHandler(error.message || 'Failed to process claim')
-    }
-
-    expect(mockErrorHandler).toHaveBeenCalledWith('Test API error')
-  })
-
-  it('should have reset function that clears state', () => {
-    const initialState = {
-      demoMode: false,
-      isProcessing: false,
+  it('reset returns to an all-idle roster', () => {
+    const resetState = {
       isComplete: false,
-      results: null,
       riskScore: 0,
-      errorMessage: '',
       terminalLogs: [],
-      uploadedFile: null,
       agents: AGENT_STEPS.map(a => ({ ...a, status: 'idle', logs: [] })),
-      currentStep: -1,
     }
-
-    // Reset should return to initial state
-    const resetState = initialState
     expect(resetState.isComplete).toBe(false)
     expect(resetState.riskScore).toBe(0)
     expect(resetState.terminalLogs).toHaveLength(0)
     expect(resetState.agents.every(a => a.status === 'idle')).toBe(true)
-  })
-})
-
-describe('useClaimAgent hook - File Handling', () => {
-  it('should handle file upload structure correctly', () => {
-    const mockFile = new File(['test'], 'claim.pdf', { type: 'application/pdf' })
-    
-    // Verify file object has expected properties
-    expect(mockFile).toHaveProperty('name', 'claim.pdf')
-    expect(mockFile).toHaveProperty('type', 'application/pdf')
-    expect(mockFile.size).toBeGreaterThan(0)
-  })
-
-  it('should reject processing without file when not in demo', () => {
-    const shouldReject = {
-      uploadedFile: null,
-      demoMode: false,
-    }
-
-    if (!shouldReject.uploadedFile && !shouldReject.demoMode) {
-      // Error condition met
-      expect(true).toBe(true)
-    } else {
-      expect(false).toBe(true)
-    }
+    expect(resetState.agents).toHaveLength(9)
   })
 })
 
 describe('useClaimAgent hook - Terminal Logging', () => {
-  it('should structure logs with required fields', () => {
-    const mockLog = {
-      text: '[INFO] Test message',
-      timestamp: new Date().toLocaleTimeString(),
-    }
-
-    expect(mockLog).toHaveProperty('text')
-    expect(mockLog).toHaveProperty('timestamp')
-    expect(typeof mockLog.text).toBe('string')
-    expect(typeof mockLog.timestamp).toBe('string')
-  })
-
   it('should identify log level markers', () => {
     const logs = [
       '[SYSTEM] Initializing',
@@ -182,10 +262,8 @@ describe('useClaimAgent hook - Terminal Logging', () => {
       '[SUCCESS] Completed',
       '[ERROR] Failed',
     ]
-
     logs.forEach(log => {
       expect(log).toMatch(/\[(SYSTEM|INFO|SUCCESS|ERROR)\]/)
     })
   })
 })
-

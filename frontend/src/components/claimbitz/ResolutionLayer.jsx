@@ -110,12 +110,14 @@ export function ResolutionLayer({
   actionLog,
   onPortal,
   onReprocess,
+  decision = null,
 }) {
   if (!recommendation && !riskLabel) return null
 
   const action = deriveAction(recommendation, riskLabel)
   const items = summarizeFindings(findings, riskReasons)
   const t = TONES[action.tone] || TONES.warning
+  const blockingConditions = decision?.blockingConditions || []
 
   return (
     <motion.section
@@ -159,6 +161,20 @@ export function ResolutionLayer({
                 )}
                 <span className="text-muted-foreground">{item.text}</span>
               </motion.li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Blocking conditions from the Judge's decision (design §13.3). */}
+      {blockingConditions.length > 0 && (
+        <div className="border-b border-border px-5 py-4">
+          <p className="eyebrow mb-2">Blocking conditions</p>
+          <ul className="flex flex-wrap gap-1.5">
+            {blockingConditions.map((c, i) => (
+              <li key={i} className="rounded bg-destructive/10 px-2 py-0.5 text-[12px] font-medium text-destructive">
+                {String(c).replace(/_/g, ' ')}
+              </li>
             ))}
           </ul>
         </div>

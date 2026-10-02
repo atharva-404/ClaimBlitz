@@ -13,6 +13,7 @@ import { GeneratedOutput } from '../components/claimbitz/GeneratedOutput'
 import { ProcessingLogs } from '../components/claimbitz/ProcessingLogs'
 import { AnimatedPercent } from '../components/claimbitz/RiskRing'
 import { ResolutionLayer } from '../components/claimbitz/ResolutionLayer'
+import { MasterClaimForm } from '../components/claimbitz/MasterClaimForm'
 import { cn } from '../lib/utils'
 
 /* Derive the console status from real hook state. */
@@ -38,10 +39,11 @@ const AGENT_REGIONS = {
   scanner: [],
   ocr: ['patient', 'provider'],
   validator: ['patient', 'provider', 'totals'],
-  medical: ['diagnosis', 'services'],
+  clinical: ['diagnosis', 'services'],
   policy: ['insurance'],
   fraud: ['services', 'totals'],
   risk: [],
+  judge: [],
   comm: [],
 }
 
@@ -124,6 +126,12 @@ export default function Dashboard() {
           </div>
 
           <div className="flex items-center gap-2">
+            {demoMode && (
+              <span className="inline-flex items-center gap-1 rounded-md border border-dashed border-warning/50 bg-warning/10 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-warning">
+                <FlaskConical className="h-3 w-3" aria-hidden />
+                Synthetic Demo
+              </span>
+            )}
             {/* Demo mode toggle (real hook demo mode) */}
             <label
               title="Demo mode loads a built-in sample claim instead of calling the backend."
@@ -234,6 +242,8 @@ export default function Dashboard() {
                     label={results.riskLabel}
                     recommendation={results.recommendation}
                     reasons={results.riskReasons || []}
+                    decision={results.decision}
+                    riskBreakdown={results.riskBreakdown}
                     onSubmit={goSubmit}
                   />
                   <ResolutionLayer
@@ -243,9 +253,16 @@ export default function Dashboard() {
                     riskReasons={results.riskReasons}
                     resolutionStatus={resolutionStatus}
                     actionLog={actionLog}
+                    decision={results.decision}
                     onPortal={() => { logAction('Navigate to submission', 'insurer portal'); goSubmit() }}
                     onReprocess={() => { logAction('Re-process claim', uploadedFile?.name || 'demo'); reprocess() }}
                   />
+                  {results.masterClaimForm && (
+                    <section aria-labelledby="master-form-heading" className="space-y-3">
+                      <h2 id="master-form-heading" className="eyebrow px-1">Master Claim Form</h2>
+                      <MasterClaimForm masterClaimForm={results.masterClaimForm} demoMode={demoMode} />
+                    </section>
+                  )}
                   <GeneratedOutput results={results} onSubmit={goSubmit} onAction={logAction} />
                 </motion.div>
               ) : status === 'error' ? (
@@ -266,7 +283,7 @@ export default function Dashboard() {
               <section className="rounded-lg border border-border bg-surface-muted px-3 py-3">
                 <AgentTimeline agents={timelineAgents} activeIndex={activeIndex} failedIndex={failedIndex} />
               </section>
-              <ProcessingLogs logs={terminalLogs} state={logState} />
+              <ProcessingLogs logs={terminalLogs} structuredLogs={results?.logs || []} state={logState} />
             </aside>
           </div>
         )}

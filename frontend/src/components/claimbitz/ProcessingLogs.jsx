@@ -32,15 +32,57 @@ function levelColor(level) {
   }
 }
 
+function rowStatusColor(status) {
+  switch ((status || '').toLowerCase()) {
+    case 'success': return 'text-[#4ADE80]'
+    case 'warning': return 'text-[#FBBF24]'
+    case 'error': return 'text-[#F87171]'
+    default: return 'text-terminal-foreground/80'
+  }
+}
+
+/**
+ * Structured log rows from the backend `data.logs` (design §13.3). Each row
+ * carries timestamp, agent (display name), action, input/output summary,
+ * status, duration, confidence, error and requestId. Rendered inside the same
+ * collapsible terminal styling as the free-text logs.
+ */
+function StructuredRows({ rows }) {
+  return (
+    <div className="space-y-1.5">
+      {rows.map((r, i) => {
+        const conf = typeof r.confidence === 'number' ? ` · conf ${Math.round(r.confidence * 100)}%` : ''
+        const dur = r.duration_ms != null ? ` · ${r.duration_ms}ms` : ''
+        const io = [r.input_summary, r.output_summary].filter(Boolean).join(' → ')
+        return (
+          <div key={i} className="border-b border-terminal-muted/20 pb-1.5 last:border-0">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
+              <span className="w-40 shrink-0 truncate text-primary-border">{r.agent || r.agent_role || 'agent'}</span>
+              <span className={rowStatusColor(r.status)}>{r.action || '—'}</span>
+              <span className="text-terminal-muted">[{(r.status || 'info').toLowerCase()}{dur}{conf}]</span>
+              {r.request_id && <span className="text-terminal-muted/70">req {String(r.request_id).slice(0, 8)}</span>}
+            </div>
+            {io && <p className="pl-40 text-terminal-foreground/70">{io}</p>}
+            {r.error && <p className="pl-40 text-[#F87171]">error: {r.error}</p>}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 /**
  * Processing logs — Lovable three-column visual, REAL data.
  * `logs` is the live terminalLogs array from useClaimAgent ({ text, timestamp }).
+ * `structuredLogs` (optional) is the backend `data.logs` rows; when present a
+ * structured per-agent view is shown above the terminal stream.
  * `state`: 'idle' | 'running' | 'complete' | 'failed'
  */
-export function ProcessingLogs({ logs = [], state = 'idle' }) {
+export function ProcessingLogs({ logs = [], structuredLogs = [], state = 'idle' }) {
   // Collapsed by default to match Lovable's console presentation.
   const [open, setOpen] = useState(false)
   const scrollRef = useRef(null)
+  const rows = Array.isArray(structuredLogs) ? structuredLogs : []
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight
@@ -85,6 +127,11 @@ export function ProcessingLogs({ logs = [], state = 'idle' }) {
             className="overflow-hidden border-t border-border"
           >
             <div ref={scrollRef} className="max-h-56 overflow-auto bg-terminal px-4 py-3 font-mono text-[12.5px] leading-relaxed">
+              {rows.length > 0 && (
+                <div className="mb-3 border-b border-terminal-muted/30 pb-3">
+                  <StructuredRows rows={rows} />
+                </div>
+              )}
               {logs.length === 0 ? (
                 <div className="flex items-center gap-2 text-terminal-muted">
                   <span className="text-primary">$</span>

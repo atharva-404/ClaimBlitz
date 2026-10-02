@@ -1,15 +1,46 @@
 import { useState, useCallback, useRef } from 'react'
 
+/*
+ * The 9 agents that actually execute in the backend pipeline, in pipeline
+ * order, with the Judge included (design §13.1). Display names match the
+ * backend AGENT_DISPLAY_NAMES roster the frontend contracts against; `role`
+ * is the stable backend `agent_role` used to reconcile step state from
+ * `data.logs` (never fabricated — an agent is only marked executed when a
+ * matching log row arrives).
+ */
 const AGENT_STEPS = [
-  { id: 'scanner', name: 'Scanner Agent', description: 'Validating document format and quality', icon: 'ScanLine' },
-  { id: 'ocr', name: 'OCR Agent', description: 'Extracting structured fields from document', icon: 'ScanLine' },
-  { id: 'validator', name: 'Validator Agent', description: 'Checking data consistency & format', icon: 'ShieldCheck' },
-  { id: 'medical', name: 'Medical Expert', description: 'Assessing clinical plausibility (ICD/CPT)', icon: 'Activity' },
-  { id: 'policy', name: 'Policy Expert', description: 'Checking coverage rules & exclusions', icon: 'ShieldCheck' },
-  { id: 'fraud', name: 'Fraud Detection', description: 'Analyzing fraud patterns & duplicates', icon: 'Activity' },
-  { id: 'risk', name: 'Risk Assessment', description: 'Computing risk score & category', icon: 'Activity' },
-  { id: 'comm', name: 'Communication', description: 'Drafting policyholder messages', icon: 'MessageSquare' },
+  { id: 'scanner', role: 'scanner', name: 'Scanner Agent', description: 'Validating document format and quality', icon: 'ScanLine' },
+  { id: 'ocr', role: 'ocr', name: 'OCR Agent', description: 'Extracting structured fields from document', icon: 'ScanLine' },
+  { id: 'validator', role: 'validator', name: 'Validator Agent', description: 'Checking data consistency & format', icon: 'ShieldCheck' },
+  { id: 'clinical', role: 'medical_expert', name: 'Clinical Consistency Agent', description: 'Assessing clinical consistency (ICD/CPT)', icon: 'Activity' },
+  { id: 'policy', role: 'policy_expert', name: 'Policy Agent', description: 'Checking coverage rules & exclusions', icon: 'ShieldCheck' },
+  { id: 'fraud', role: 'fraud_detection', name: 'Fraud Detection Agent', description: 'Analyzing fraud patterns & duplicates', icon: 'Activity' },
+  { id: 'risk', role: 'risk_assessment', name: 'Risk Assessment Agent', description: 'Computing decomposed risk breakdown', icon: 'Activity' },
+  { id: 'judge', role: 'judge', name: 'Judge Agent', description: 'Reconciling findings into the final decision', icon: 'ShieldCheck' },
+  { id: 'comm', role: 'communication', name: 'Communication Agent', description: 'Drafting policyholder messages', icon: 'MessageSquare' },
 ]
+
+/* Marks demo payloads/badges as synthetic (design §13.4). */
+const SYNTHETIC_DEMO_LABEL = 'SYNTHETIC DEMO'
+
+/*
+ * Reconcile per-agent step state from the backend's structured logs
+ * (design §13.1). An agent is `completed` when it has a matching log row,
+ * `error` when that row's status is 'error', and left `idle` (greyed out)
+ * when it did not execute. Matching is by the stable `agent_role` with a
+ * fallback to the display name so the UI reflects what actually ran.
+ */
+function agentsFromLogs(logs) {
+  const rows = Array.isArray(logs) ? logs : []
+  return AGENT_STEPS.map((step) => {
+    const match = rows.find(
+      (r) => r.agent_role === step.role || r.agent === step.name,
+    )
+    if (!match) return { ...step, status: 'idle', logs: [] }
+    const status = (match.status || '').toLowerCase() === 'error' ? 'error' : 'completed'
+    return { ...step, status, logs: match ? [match] : [] }
+  })
+}
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 const LATEST_CLAIM_KEY = 'binaryblitz.latestClaim'
@@ -67,6 +98,8 @@ export function useClaimAgent() {
 
   const getDemoPayload = useCallback(() => {
     const base = {
+      synthetic: SYNTHETIC_DEMO_LABEL,
+      demoLabel: SYNTHETIC_DEMO_LABEL,
       claimData: {
         patientName: 'Rahul Sharma',
         dob: '1985-03-14',
@@ -125,37 +158,42 @@ export function useClaimAgent() {
 
   /**
    * Per-agent demo log messages — scenario-specific activity and result text
-   * for the sequential 8-agent demo flow. Indices match AGENT_STEPS exactly.
+   * for the sequential 9-agent SYNTHETIC DEMO flow. Indices match AGENT_STEPS
+   * exactly (scanner, ocr, validator, clinical, policy, fraud, risk, judge,
+   * comm).
    */
   const getDemoAgentLogs = useCallback(() => {
     const low = [
       { activity: 'Scanning document structure…', level: 'SUCCESS', result: 'Document format valid, 2 pages detected' },
       { activity: 'Extracting structured fields from CMS-1500…', level: 'SUCCESS', result: 'Extracted claim fields from document' },
       { activity: 'Validating data consistency and format…', level: 'SUCCESS', result: 'Required fields present, formats consistent' },
-      { activity: 'Assessing clinical plausibility (ICD/CPT)…', level: 'SUCCESS', result: 'Diagnosis J18.9 consistent with CPT 99213' },
+      { activity: 'Checking clinical consistency (ICD/CPT)…', level: 'SUCCESS', result: 'Diagnosis J18.9 consistent with CPT 99213' },
       { activity: 'Checking coverage rules and exclusions…', level: 'SUCCESS', result: 'No blocking policy exceptions found' },
       { activity: 'Analyzing fraud patterns and duplicates…', level: 'SUCCESS', result: 'No anomalies detected' },
-      { activity: 'Computing risk score and category…', level: 'DATA', result: 'Risk scored at 24% — LOW' },
+      { activity: 'Computing decomposed risk breakdown…', level: 'DATA', result: 'Risk scored at 24% — LOW' },
+      { activity: 'Reconciling findings into a decision…', level: 'SUCCESS', result: 'Judge ruling: APPROVE' },
       { activity: 'Drafting policyholder messages…', level: 'SUCCESS', result: 'Payer response and notifications drafted' },
     ]
     const medium = [
       { activity: 'Scanning document structure…', level: 'SUCCESS', result: 'Document format valid, 2 pages detected' },
       { activity: 'Extracting structured fields from CMS-1500…', level: 'SUCCESS', result: 'Extracted claim fields from document' },
       { activity: 'Validating data consistency and format…', level: 'SUCCESS', result: 'Required fields present, minor date variance noted' },
-      { activity: 'Assessing clinical plausibility (ICD/CPT)…', level: 'WARN', result: 'Slight diagnosis-procedure mismatch — review recommended' },
+      { activity: 'Checking clinical consistency (ICD/CPT)…', level: 'WARN', result: 'Slight diagnosis-procedure mismatch — review recommended' },
       { activity: 'Checking coverage rules and exclusions…', level: 'SUCCESS', result: 'Coverage confirmed with monitoring flag' },
       { activity: 'Analyzing fraud patterns and duplicates…', level: 'SUCCESS', result: 'No significant anomalies detected' },
-      { activity: 'Computing risk score and category…', level: 'DATA', result: 'Risk scored at 45% — MEDIUM' },
+      { activity: 'Computing decomposed risk breakdown…', level: 'DATA', result: 'Risk scored at 45% — MEDIUM' },
+      { activity: 'Reconciling findings into a decision…', level: 'WARN', result: 'Judge ruling: REVIEW' },
       { activity: 'Drafting policyholder messages…', level: 'SUCCESS', result: 'Review notification drafted' },
     ]
     const high = [
       { activity: 'Scanning document structure…', level: 'SUCCESS', result: 'Document format valid, 2 pages detected' },
       { activity: 'Extracting structured fields from CMS-1500…', level: 'SUCCESS', result: 'Extracted claim fields from document' },
       { activity: 'Validating data consistency and format…', level: 'SUCCESS', result: 'Required fields present, formats consistent' },
-      { activity: 'Assessing clinical plausibility (ICD/CPT)…', level: 'WARN', result: 'Modifier 25 usage flagged — bundled procedure concern' },
+      { activity: 'Checking clinical consistency (ICD/CPT)…', level: 'WARN', result: 'Modifier 25 usage flagged — bundled procedure concern' },
       { activity: 'Checking coverage rules and exclusions…', level: 'WARN', result: 'Partial policy match — coverage exception possible' },
       { activity: 'Analyzing fraud patterns and duplicates…', level: 'WARN', result: 'Billing frequency above expected range for subscriber' },
-      { activity: 'Computing risk score and category…', level: 'DATA', result: 'Risk scored at 42% — HIGH' },
+      { activity: 'Computing decomposed risk breakdown…', level: 'DATA', result: 'Risk scored at 42% — HIGH' },
+      { activity: 'Reconciling findings into a decision…', level: 'WARN', result: 'Judge ruling: REVIEW' },
       { activity: 'Drafting policyholder messages…', level: 'SUCCESS', result: 'Human review notification drafted' },
     ]
     return demoScenario === 'high' ? high : demoScenario === 'medium' ? medium : low
@@ -211,12 +249,12 @@ export function useClaimAgent() {
 
     try {
       markProcessing(0, demoMode && !uploadedFile
-        ? `[INFO] Scanner Agent: Starting ${demoScenario.toUpperCase()} risk demo analysis…`
-        : '[INFO] Scanner Agent: Uploading and processing claim through 8-agent pipeline...')
+        ? `[INFO] Scanner Agent: Starting ${demoScenario.toUpperCase()} risk SYNTHETIC DEMO analysis…`
+        : '[INFO] Scanner Agent: Uploading and processing claim through 9-agent pipeline...')
 
       let data
       if (demoMode && !uploadedFile) {
-        // Demo: execute through all 8 agents sequentially
+        // Demo: execute through all 9 agents sequentially (SYNTHETIC DEMO).
         const demoLogs = getDemoAgentLogs()
         for (let i = 0; i < AGENT_STEPS.length; i++) {
           if (abortRef.current) return
@@ -230,28 +268,10 @@ export function useClaimAgent() {
         const formData = new FormData()
         formData.append('file', uploadedFile)
 
-        // Start animating agent steps while backend processes
-        const stepAnimator = setInterval(() => {
-          setAgents(prev => {
-            const nextIdle = prev.findIndex(a => a.status === 'idle')
-            if (nextIdle > 0 && nextIdle < prev.length) {
-              return prev.map((a, i) => {
-                if (i < nextIdle) return { ...a, status: 'completed' }
-                if (i === nextIdle) return { ...a, status: 'processing' }
-                return a
-              })
-            }
-            return prev
-          })
-          setCurrentStep(prev => Math.min(prev + 1, AGENT_STEPS.length - 2))
-        }, 2500)
-
         const response = await fetch(`${API_BASE_URL}/process`, {
           method: 'POST',
           body: formData,
         })
-
-        clearInterval(stepAnimator)
 
         if (!response.ok) {
           const err = await response.json().catch(() => ({}))
@@ -259,7 +279,15 @@ export function useClaimAgent() {
         }
 
         data = await response.json()
-        markCompleted(0, `[SUCCESS] Pipeline complete: ${data.findings?.length || 0} agents contributed`)
+
+        // Reconcile step state from what the backend ACTUALLY ran: each agent
+        // is marked completed/error only if it appears in data.logs; agents
+        // that did not execute stay idle (greyed out). Replaces the timer.
+        const reconciled = agentsFromLogs(data.logs)
+        setAgents(reconciled)
+        const executed = reconciled.filter(a => a.status !== 'idle').length
+        setCurrentStep(reconciled.length - 1)
+        markCompleted(0, `[SUCCESS] Pipeline complete: ${executed} agents executed`)
       }
 
       addTerminalLog('[AGENT] Pipeline: All agents processed claim data')
@@ -272,9 +300,11 @@ export function useClaimAgent() {
         }
       }
 
-      // Mark all agents complete
-      setAgents(AGENT_STEPS.map((a) => ({ ...a, status: 'completed', logs: [] })))
-      setCurrentStep(AGENT_STEPS.length - 1)
+      // Demo mode has no backend logs — mark the synthetic roster complete.
+      if (demoMode && !uploadedFile) {
+        setAgents(AGENT_STEPS.map((a) => ({ ...a, status: 'completed', logs: [] })))
+        setCurrentStep(AGENT_STEPS.length - 1)
+      }
 
       setResults(data)
       persistClaim(data, uploadedFile?.name)
@@ -364,4 +394,4 @@ export function useClaimAgent() {
   }
 }
 
-export { AGENT_STEPS }
+export { AGENT_STEPS, SYNTHETIC_DEMO_LABEL, agentsFromLogs }
