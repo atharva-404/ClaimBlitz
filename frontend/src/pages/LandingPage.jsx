@@ -442,12 +442,17 @@ export default function LandingPage() {
           </Link>
           <nav className="hidden items-center gap-7 md:flex">
             {[
-              ['Workflow', '#how-it-works'],
-              ['Claim anatomy', '#anatomy'],
-              ['Decisions', '#decisions'],
-              ['Audit', '#audit'],
-            ].map(([l, h]) => (
-              <a key={l} href={h} className="story-link text-[13.5px] font-medium text-muted-foreground transition-colors hover:text-foreground">
+              ['Workflow', 'how-it-works'],
+              ['Claim anatomy', 'anatomy'],
+              ['Decisions', 'decisions'],
+              ['Audit', 'audit'],
+            ].map(([l, id]) => (
+              <a
+                key={l}
+                href={`#${id}`}
+                onClick={(e) => { e.preventDefault(); document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' }) }}
+                className="story-link text-[13.5px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+              >
                 <span>{l}</span>
               </a>
             ))}
@@ -483,6 +488,7 @@ export default function LandingPage() {
                 </Link>
                 <a
                   href="#how-it-works"
+                  onClick={(e) => { e.preventDefault(); document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' }) }}
                   className="inline-flex h-11 items-center rounded-md border border-border bg-surface px-5 text-[14.5px] font-semibold text-foreground transition-colors hover:bg-surface-muted active:scale-[0.98]"
                 >
                   How it works
