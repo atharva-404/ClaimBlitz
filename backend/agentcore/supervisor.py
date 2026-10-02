@@ -330,8 +330,20 @@ class Supervisor:
         for role in PARALLEL_ANALYST_ROLES:
             started = time.perf_counter()
             try:
+                # The Risk agent decomposes risk from its peers' findings (incl.
+                # detecting ABSTAIN/agent_unavailable). Since analysts run in
+                # order with Risk last, its peers are already on state.findings.
+                analyze_context = None
+                if role == AgentRole.RISK_ASSESSMENT:
+                    analyze_context = {
+                        "findings": [
+                            f.model_dump(mode="json")
+                            for f in state.findings
+                            if f.agent in PARALLEL_ANALYST_ROLES
+                        ]
+                    }
                 finding = await self._analysts[role].analyze(
-                    claim_id=state.claim_id, claim=claim_data
+                    claim_id=state.claim_id, claim=claim_data, context=analyze_context
                 )
                 state.findings.append(finding)
                 state.decision_path = state.decision_path.append(

@@ -1,52 +1,83 @@
-"""Fraud Detection Agent — duplicate/pattern-based fraud analysis.
+"""Fraud Detection Agent — real-signal only, never "high bill = fraud".
 
-Looks for fraud indicators: duplicate submissions, upcoding, unbundling,
-impossible day surgery combinations, phantom billing, identity mismatches.
-Relies heavily on vector memory recall to find similar past fraud patterns.
+Separates risk types and forbids price-based conclusions. A code post-filter
+drops any indicator whose only cited evidence is the bill-amount magnitude.
+When no indicators survive, the reasoning is exactly
+"No direct fraud evidence identified from supplied documents." and the fraud
+verdict is APPROVE — the agent never forces a flag (design §8.4).
 """
 
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
 from ..base import Agent
 from ..protocol import AgentFinding, Evidence, EvidenceSource, Verdict
 
 
+NO_EVIDENCE_REASONING = "No direct fraud evidence identified from supplied documents."
+
+_RISK_TYPES = ("DATA_QUALITY", "FRAUD", "CLINICAL", "POLICY", "BILLING")
+
+# Phrases that signal an indicator rests ONLY on bill-amount magnitude.
+_AMOUNT_ONLY_PATTERNS = (
+    r"high(?:er)?\s+(?:bill|amount|cost|charge|total)",
+    r"(?:bill|amount|cost|charge|total)\s+(?:is\s+)?(?:too\s+)?high",
+    r"expensive",
+    r"large\s+(?:bill|amount|sum|total)",
+    r"costly",
+    r"exceeds?\s+(?:the\s+)?(?:average|norm|typical)",
+    r"unusually\s+(?:high|large|expensive)",
+)
+_AMOUNT_ONLY_RE = re.compile("|".join(_AMOUNT_ONLY_PATTERNS), re.IGNORECASE)
+
+# Concrete, non-price signal keywords that rescue an indicator from the filter.
+_CONCRETE_SIGNAL_RE = re.compile(
+    r"duplicate|conflict|mismatch|identity|date|admission|discharge|"
+    r"unbundl|upcod|repeated|inconsistent|forg|manipulat|phantom",
+    re.IGNORECASE,
+)
+
+
 class FraudDetectionAgent(Agent):
-    """Fraud analysis: duplicates, upcoding, patterns, anomalies."""
+    """Fraud analysis from concrete signals only (never price magnitude)."""
 
     @property
     def system_prompt(self) -> str:
         return (
             "You are the Fraud Detection Agent in a medical insurance claim processing system. "
-            "You are naturally suspicious and look for fraud indicators. Your job is to identify "
-            "potential fraud, waste, or abuse in medical claims.\n\n"
-            "Look for:\n"
-            "- Duplicate or near-duplicate submissions\n"
-            "- Upcoding (billing for more expensive service than provided)\n"
-            "- Unbundling (splitting bundled procedures to bill separately)\n"
-            "- Impossible combinations (multiple full-day procedures same day)\n"
-            "- Unusually high amounts for the service type\n"
-            "- Pattern matches with known fraud schemes\n"
-            "- Identity or provider inconsistencies\n\n"
+            "You identify potential fraud, waste, or abuse — but ONLY from concrete signals "
+            "present in the data. A high bill amount by itself is NEVER fraud and must never "
+            "produce an indicator.\n\n"
+            "Separate every indicator into a risk type: DATA_QUALITY, FRAUD, CLINICAL, POLICY, "
+            "or BILLING. Legitimate concrete signals include: duplicate claim/bill numbers, "
+            "conflicting patient/provider identity across documents, duplicate billing line "
+            "items, inconsistent dates (admission after discharge, service after submission). "
+            "Do NOT conclude fraud from price magnitude, and cite the specific evidence snippet "
+            "for every indicator.\n\n"
             "Respond with strict JSON:\n"
-            '{"verdict": "approve"|"reject"|"flag", "confidence": 0.0-1.0, '
-            '"reasoning": "fraud assessment", "fraud_score": 0.0-1.0, '
-            '"indicators": [{"type": "...", "severity": "high"|"medium"|"low", "detail": "..."}], '
-            '"similar_fraud_patterns": []}'
+            '{"fraud_indicators": [{"indicator": "...", "evidence": "snippet", '
+            '"confidence": 0.0-1.0, "severity": "low|medium|high", '
+            '"risk_type": "DATA_QUALITY|FRAUD|CLINICAL|POLICY|BILLING"}], '
+            '"overall_fraud_assessment": "...", "confidence": 0.0-1.0}'
         )
 
-    async def analyze(self, *, claim_id: str, claim: dict[str, Any], context: dict[str, Any] | None = None) -> AgentFinding:
-        # Search memory for similar patterns (key fraud detection capability)
-        search_text = (
-            f"fraud pattern: provider={claim.get('provider_name', '')} "
-            f"amount={claim.get('billed_amount', '')} "
-            f"procedure={claim.get('procedure_codes', [])} "
-            f"diagnosis={claim.get('diagnosis', '')}"
+    async def analyze(
+        self,
+        *,
+        claim_id: str,
+        claim: dict[str, Any],
+        context: dict[str, Any] | None = None,
+    ) -> AgentFinding:
+        provider = _cell_value((claim.get("provider") or {}).get("hospital_name"))
+        diagnosis = _cell_value((claim.get("clinical") or {}).get("primary_diagnosis"))
+
+        similar = await self.memory.recall(
+            query=f"fraud pattern: provider={provider} diagnosis={diagnosis}",
+            top_k=5,
         )
-        similar = await self.memory.recall(query=search_text, top_k=5)
         memory_context = ""
         if similar:
             memory_context = "\n\nSimilar past cases from fraud memory:\n" + "\n".join(
@@ -55,52 +86,96 @@ class FraudDetectionAgent(Agent):
 
         objection_note = ""
         if context and context.get("objection"):
-            objection_note = f"\n\nReconsider after challenge: {context['objection'].get('reason', '')}"
+            objection_note = (
+                f"\n\nReconsider after challenge: {context['objection'].get('reason', '')}"
+            )
 
         instructions = (
-            f"Analyze this claim for fraud indicators:\n\n"
+            f"Analyze this Master Claim Form for concrete fraud indicators:\n\n"
             f"{json.dumps(claim, indent=2, default=str)}"
             f"{memory_context}{objection_note}\n\n"
-            f"Apply fraud detection expertise. Be thorough but fair."
+            f"Remember: a high bill amount alone is never fraud. Cite concrete evidence."
         )
         result = await self.ask_llm_json(instructions)
         parsed = result.parsed
 
-        verdict = Verdict(parsed.get("verdict", "flag"))
-        conf_value = parsed.get("confidence", 0.7)
-        reasoning = parsed.get("reasoning", "No reasoning provided")
-        indicators = parsed.get("indicators", [])
-        fraud_score = parsed.get("fraud_score", 0.0)
+        raw_indicators = parsed.get("fraud_indicators", []) or []
+        surviving = [i for i in raw_indicators if self._survives_filter(i)]
 
-        # Remember this analysis for future pattern matching
+        if not surviving:
+            # Exact no-evidence message; fraud dimension APPROVEs (design §8.4).
+            return AgentFinding(
+                agent=self.role,
+                claim_id=claim_id,
+                verdict=Verdict.APPROVE,
+                confidence=self.make_confidence(
+                    parsed.get("confidence", 0.8), NO_EVIDENCE_REASONING
+                ),
+                reasoning=NO_EVIDENCE_REASONING,
+                evidence=[],
+                referenced_fields=["provider.hospital_name", "billing.line_items"],
+                tags=["no_fraud_evidence"],
+            )
+
+        reasoning = parsed.get("overall_fraud_assessment") or (
+            f"{len(surviving)} concrete fraud indicator(s) identified."
+        )
+        conf_value = parsed.get("confidence", 0.6)
+
         await self.memory.remember(
-            text=f"Claim {claim_id} fraud analysis: score={fraud_score}, verdict={verdict.value}, indicators={[i.get('type') for i in indicators]}",
-            metadata={"claim_id": claim_id, "fraud_score": fraud_score, "verdict": verdict.value},
+            text=(
+                f"Claim {claim_id} fraud: {len(surviving)} indicator(s) "
+                f"[{[i.get('indicator') for i in surviving]}]"
+            ),
+            metadata={"claim_id": claim_id, "indicator_count": len(surviving)},
         )
 
         evidence = [
             Evidence(
                 source=EvidenceSource.RULE_ENGINE,
-                field=indicator.get("type", "unknown"),
-                snippet=indicator.get("detail", ""),
-                weight=1.0 if indicator.get("severity") == "high" else 0.6,
+                field=str(i.get("risk_type", "FRAUD")),
+                snippet=str(i.get("evidence") or i.get("indicator", ""))[:200],
+                weight=1.0 if i.get("severity") == "high" else 0.6,
             )
-            for indicator in indicators[:5]
+            for i in surviving[:5]
         ]
-        if similar:
-            evidence.append(Evidence(
-                source=EvidenceSource.VECTOR_MEMORY,
-                snippet=f"Matched {len(similar)} similar historical patterns",
-                weight=0.7,
-            ))
 
         return AgentFinding(
             agent=self.role,
             claim_id=claim_id,
-            verdict=verdict,
+            verdict=Verdict.FLAG,
             confidence=self.make_confidence(conf_value, reasoning),
             reasoning=reasoning,
             evidence=evidence,
-            referenced_fields=["provider_name", "billed_amount", "procedure_codes", "service_date"],
-            tags=[i.get("type", "") for i in indicators[:5]] + ([f"fraud_score_{fraud_score:.1f}"] if fraud_score > 0.3 else []),
+            referenced_fields=["provider.hospital_name", "billing.line_items"],
+            tags=[str(i.get("risk_type", "fraud")).lower() for i in surviving[:5]],
         )
+
+    # ------------------------------------------------------------------
+
+    def _survives_filter(self, indicator: Any) -> bool:
+        """Drop indicators whose only cited evidence is bill-amount magnitude."""
+        if not isinstance(indicator, dict):
+            return False
+        text = " ".join(
+            str(indicator.get(k, ""))
+            for k in ("indicator", "evidence", "detail")
+        )
+        if not text.strip():
+            return False
+        # If the citation names a concrete non-price signal, keep it.
+        if _CONCRETE_SIGNAL_RE.search(text):
+            return True
+        # Otherwise, drop it when it reads as an amount-only conclusion.
+        if _AMOUNT_ONLY_RE.search(text):
+            return False
+        return True
+
+
+def _cell_value(cell: Any) -> Any:
+    if isinstance(cell, dict):
+        return cell.get("value")
+    return cell
+
+
+__all__ = ["FraudDetectionAgent"]
