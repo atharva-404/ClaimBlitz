@@ -62,6 +62,7 @@ export default function Dashboard() {
     agents, currentStep, isProcessing, isComplete,
     results, riskScore, demoMode, setDemoMode, demoScenario, setDemoScenario,
     terminalLogs, uploadedFile, errorMessage, handleUpload, process, reset,
+    resolutionStatus, actionLog, logAction, reprocess,
   } = useClaimAgent()
   const fileInputRef = useRef(null)
 
@@ -240,10 +241,12 @@ export default function Dashboard() {
                     riskLabel={results.riskLabel}
                     findings={results.findings}
                     riskReasons={results.riskReasons}
-                    onPortal={goSubmit}
-                    onReprocess={reset}
+                    resolutionStatus={resolutionStatus}
+                    actionLog={actionLog}
+                    onPortal={() => { logAction('Navigate to submission', 'insurer portal'); goSubmit() }}
+                    onReprocess={() => { logAction('Re-process claim', uploadedFile?.name || 'demo'); reprocess() }}
                   />
-                  <GeneratedOutput results={results} onSubmit={goSubmit} />
+                  <GeneratedOutput results={results} onSubmit={goSubmit} onAction={logAction} />
                 </motion.div>
               ) : status === 'error' ? (
                 <ErrorState message={errorMessage} onRetry={process} />

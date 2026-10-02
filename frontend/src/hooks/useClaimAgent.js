@@ -32,6 +32,9 @@ export function useClaimAgent() {
   const [errorMessage, setErrorMessage] = useState('')
   const [terminalLogs, setTerminalLogs] = useState([])
   const [uploadedFile, setUploadedFile] = useState(null)
+  const [resolutionStatus, setResolutionStatus] = useState(null)
+  // null | 'analyzed' | 'action_required' | 'awaiting_review' | 'ready_to_submit'
+  const [actionLog, setActionLog] = useState([])
   const abortRef = useRef(false)
 
   const persistClaim = useCallback((payload, sourceFileName) => {
@@ -54,6 +57,12 @@ export function useClaimAgent() {
 
   const addTerminalLog = useCallback((log) => {
     setTerminalLogs(prev => [...prev, { text: log, timestamp: new Date().toLocaleTimeString() }])
+  }, [])
+
+  const logAction = useCallback((action, detail) => {
+    const ts = new Date().toLocaleTimeString()
+    setActionLog(prev => [...prev, { action, detail: detail || '', timestamp: ts }])
+    setTerminalLogs(prev => [...prev, { text: `[ACTION] ${action}${detail ? ' — ' + detail : ''}`, timestamp: ts }])
   }, [])
 
   const getDemoPayload = useCallback(() => {
@@ -274,6 +283,13 @@ export function useClaimAgent() {
       addTerminalLog(`[SYSTEM] Decision Steps: ${data.decisionSteps || '?'} | Stage: ${data.stage || 'completed'}`)
       addTerminalLog('[SYSTEM] ALL AGENTS COMPLETE — Claim processing finished')
       setIsComplete(true)
+
+      // Derive resolution status from risk level
+      const rl = (data.riskLabel || '').toUpperCase()
+      if (rl === 'LOW') setResolutionStatus('ready_to_submit')
+      else if (rl === 'MEDIUM') setResolutionStatus('action_required')
+      else if (rl === 'HIGH') setResolutionStatus('awaiting_review')
+      else setResolutionStatus('analyzed')
     } catch (error) {
       console.error('Process failed:', error)
       setErrorMessage(error.message || 'Failed to process claim. Please try again.')
@@ -304,6 +320,24 @@ export function useClaimAgent() {
     setErrorMessage('')
     setTerminalLogs([])
     setUploadedFile(null)
+    setResolutionStatus(null)
+    setActionLog([])
+  }, [])
+
+  /** Reset processing state but keep the uploaded file for re-analysis. */
+  const reprocess = useCallback(() => {
+    abortRef.current = true
+    setAgents(AGENT_STEPS.map(a => ({ ...a, status: 'idle', logs: [] })))
+    setCurrentStep(-1)
+    setIsProcessing(false)
+    setIsComplete(false)
+    setResults(null)
+    setRiskScore(0)
+    setErrorMessage('')
+    setTerminalLogs([])
+    setResolutionStatus(null)
+    setActionLog([])
+    // uploadedFile intentionally preserved for re-analysis
   }, [])
 
   return {
@@ -323,6 +357,10 @@ export function useClaimAgent() {
     handleUpload,
     process,
     reset,
+    resolutionStatus,
+    actionLog,
+    logAction,
+    reprocess,
   }
 }
 

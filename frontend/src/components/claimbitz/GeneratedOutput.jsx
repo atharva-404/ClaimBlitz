@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { AlertTriangle, Check, CheckCircle2, Copy } from 'lucide-react'
+import { AlertTriangle, Check, CheckCircle2, Copy, Download } from 'lucide-react'
 import { cn } from '../../lib/utils'
 
 const TABS = [
@@ -56,7 +56,7 @@ function normalizeNewlines(s) {
  * email / whatsapp drafts, claim summary (claimData) and agent findings.
  * Submit action navigates to the real submission flow.
  */
-export function GeneratedOutput({ results, onSubmit }) {
+export function GeneratedOutput({ results, onSubmit, onAction }) {
   const [tab, setTab] = useState('email')
   const [copied, setCopied] = useState(false)
 
@@ -74,9 +74,22 @@ export function GeneratedOutput({ results, onSubmit }) {
       await navigator.clipboard.writeText(copyText)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
+      onAction?.('Copied ' + tab, tab === 'findings' ? 'JSON' : 'text')
     } catch (e) {
       console.error(e)
     }
+  }
+
+  const download = () => {
+    const ext = tab === 'findings' || tab === 'summary' ? 'json' : 'txt'
+    const blob = new Blob([copyText], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `claimbitz-${tab}.${ext}`
+    a.click()
+    URL.revokeObjectURL(url)
+    onAction?.('Downloaded ' + tab, ext)
   }
 
   return (
@@ -89,7 +102,7 @@ export function GeneratedOutput({ results, onSubmit }) {
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3.5">
         <div>
           <h2 className="text-[19px] font-semibold text-foreground">Generated outputs</h2>
-          <p className="mt-0.5 text-[13px] text-muted-foreground">Agent-authored result with full audit trail</p>
+          <p className="mt-0.5 text-[13px] text-muted-foreground">AI-generated drafts — review, copy or export before sending</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -100,10 +113,17 @@ export function GeneratedOutput({ results, onSubmit }) {
             {copied ? 'Copied' : 'Copy'}
           </button>
           <button
+            onClick={download}
+            className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border px-3 text-[13px] font-medium text-foreground transition-colors hover:bg-surface-muted"
+          >
+            <Download className="h-4 w-4 text-muted-foreground" />
+            Export
+          </button>
+          <button
             onClick={onSubmit}
             className="inline-flex h-9 items-center gap-1.5 rounded-md bg-primary px-3.5 text-[13px] font-semibold text-white transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.98]"
           >
-            Submit claim
+            Continue to submission
           </button>
         </div>
       </header>

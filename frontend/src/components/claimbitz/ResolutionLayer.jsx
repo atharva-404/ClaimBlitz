@@ -1,6 +1,6 @@
 import React from 'react'
 import { motion } from 'framer-motion'
-import { CheckCircle2, AlertTriangle, ArrowRight, Mail, RotateCcw, UserCheck } from 'lucide-react'
+import { CheckCircle2, AlertTriangle, ArrowRight, Clock, Mail, RotateCcw, UserCheck } from 'lucide-react'
 import { cn } from '../../lib/utils'
 
 /**
@@ -10,12 +10,18 @@ import { cn } from '../../lib/utils'
  * Uses ONLY real data from useClaimAgent results. Actions are limited to
  * functionality that genuinely exists in the application:
  *   onPortal    → navigate to /submission (insurer portal selection)
- *   onReprocess → call reset + re-enable processing
+ *   onReprocess → reset processing state, keep file for re-analysis
  *
  * Wording is truthful:
  *   "Continue to insurer portal" — NOT "Claim submitted"
- *   "Generate clarification"     — NOT "Clarification sent"
- *   "Human review required"      — NOT "Investigation started"
+ *   "Generated communications available"  — NOT "Clarification sent"
+ *   "Awaiting human review"     — NOT "Investigation started"
+ *
+ * resolutionStatus tracks the genuine operational state:
+ *   ready_to_submit  — LOW risk, can proceed to insurer portal
+ *   action_required  — MEDIUM risk, review and possibly re-process
+ *   awaiting_review  — HIGH risk, human decision needed
+ *   analyzed         — fallback, analysis complete
  */
 
 function deriveAction(recommendation, riskLabel) {
@@ -28,22 +34,35 @@ function deriveAction(recommendation, riskLabel) {
       description: 'The claim passed automated review with no blocking findings. Continue to the insurer portal to prepare the submission.',
       tone: 'success',
       actions: ['portal'],
+      workflow: null,
     }
   }
   if (rec === 'REJECT' || label === 'HIGH') {
     return {
       heading: 'Human review required',
-      description: 'The claim exceeds the automated approval threshold. Review the findings and generated communications before deciding on next steps.',
+      description: 'The claim exceeds the automated approval threshold. A human reviewer must evaluate the flagged findings before the claim can proceed.',
       tone: 'destructive',
       actions: ['communications', 'reprocess'],
+      workflow: [
+        'Review the flagged findings above',
+        'Copy or export the generated communications below',
+        'A reviewer evaluates the findings and makes a decision (external)',
+        'Re-process the claim if corrections are made',
+      ],
     }
   }
   // MEDIUM / REVIEW
   return {
     heading: 'Review and clarification needed',
-    description: 'Some findings require attention before the claim can proceed. Generate a clarification request or re-process after addressing the concerns.',
+    description: 'Some findings require attention. Review the communications generated for the provider, then re-process once any clarification is received.',
     tone: 'warning',
     actions: ['communications', 'portal', 'reprocess'],
+    workflow: [
+      'Review the flagged findings above',
+      'Copy or export the clarification request below',
+      'Send the clarification to the provider (external)',
+      'Upload the corrected or clarified claim and re-process',
+    ],
   }
 }
 
@@ -75,11 +94,20 @@ const TONES = {
   destructive: { bg: 'bg-destructive/10', text: 'text-destructive', Icon: AlertTriangle },
 }
 
+const STATUS_DISPLAY = {
+  ready_to_submit: { label: 'Ready for submission', tone: 'text-success', Icon: CheckCircle2 },
+  action_required: { label: 'Action required — review findings', tone: 'text-warning', Icon: AlertTriangle },
+  awaiting_review: { label: 'Awaiting human review', tone: 'text-warning', Icon: Clock },
+  analyzed: { label: 'Analysis complete', tone: 'text-muted-foreground', Icon: CheckCircle2 },
+}
+
 export function ResolutionLayer({
   recommendation,
   riskLabel,
   findings,
   riskReasons,
+  resolutionStatus,
+  actionLog,
   onPortal,
   onReprocess,
 }) {
@@ -136,6 +164,31 @@ export function ResolutionLayer({
         </div>
       )}
 
+      {/* Workflow guidance — MEDIUM/HIGH only */}
+      {action.workflow && (
+        <div className="border-b border-border px-5 py-4">
+          <p className="eyebrow mb-2">Recommended workflow</p>
+          <ol className="space-y-1.5">
+            {action.workflow.map((step, i) => {
+              const isExternal = step.includes('(external)')
+              return (
+                <li key={i} className="flex items-start gap-2.5 text-[13px]">
+                  <span className={cn(
+                    'mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full text-[10px] font-bold',
+                    isExternal ? 'border border-border-strong bg-surface-muted text-subtle-foreground' : 'bg-primary-subtle text-accent-foreground',
+                  )}>
+                    {i + 1}
+                  </span>
+                  <span className={cn('leading-relaxed', isExternal ? 'text-subtle-foreground' : 'text-muted-foreground')}>
+                    {step}
+                  </span>
+                </li>
+              )
+            })}
+          </ol>
+        </div>
+      )}
+
       {/* Available next steps — only genuinely existing actions */}
       <div className="flex flex-wrap items-center gap-3 px-5 py-4">
         {action.actions.includes('portal') && onPortal && (
@@ -163,6 +216,30 @@ export function ResolutionLayer({
           </button>
         )}
       </div>
+
+      {/* Operational status — truthful state of what has happened */}
+      {resolutionStatus && (
+        <div className="border-t border-border px-5 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              {(() => {
+                const s = STATUS_DISPLAY[resolutionStatus] || STATUS_DISPLAY.analyzed
+                return (
+                  <>
+                    <s.Icon className={cn('h-3.5 w-3.5', s.tone)} />
+                    <span className={cn('text-[13px] font-semibold', s.tone)}>{s.label}</span>
+                  </>
+                )
+              })()}
+            </div>
+            {actionLog && actionLog.length > 0 && (
+              <span className="text-[11.5px] tabular-nums text-subtle-foreground">
+                {actionLog.length} {actionLog.length === 1 ? 'action' : 'actions'} taken
+              </span>
+            )}
+          </div>
+        </div>
+      )}
     </motion.section>
   )
 }
