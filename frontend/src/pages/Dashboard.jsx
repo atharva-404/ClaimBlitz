@@ -12,6 +12,7 @@ import { RiskPanel } from '../components/claimbitz/RiskPanel'
 import { GeneratedOutput } from '../components/claimbitz/GeneratedOutput'
 import { ProcessingLogs } from '../components/claimbitz/ProcessingLogs'
 import { AnimatedPercent } from '../components/claimbitz/RiskRing'
+import { ResolutionLayer } from '../components/claimbitz/ResolutionLayer'
 import { cn } from '../lib/utils'
 
 /* Derive the console status from real hook state. */
@@ -233,6 +234,13 @@ export default function Dashboard() {
                     recommendation={results.recommendation}
                     reasons={results.riskReasons || []}
                     onSubmit={goSubmit}
+                  />
+                  <ResolutionLayer
+                    recommendation={results.recommendation}
+                    riskLabel={results.riskLabel}
+                    findings={results.findings}
+                    riskReasons={results.riskReasons}
+                    onPortal={goSubmit}
                   />
                   <GeneratedOutput results={results} onSubmit={goSubmit} />
                 </motion.div>
