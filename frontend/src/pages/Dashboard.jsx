@@ -241,6 +241,7 @@ export default function Dashboard() {
                     findings={results.findings}
                     riskReasons={results.riskReasons}
                     onPortal={goSubmit}
+                    onReprocess={reset}
                   />
                   <GeneratedOutput results={results} onSubmit={goSubmit} />
                 </motion.div>
