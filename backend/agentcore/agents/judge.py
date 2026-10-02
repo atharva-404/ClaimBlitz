@@ -18,6 +18,7 @@ from ..protocol import (
     DecisionPath,
     Evidence,
     EvidenceSource,
+    HUMAN_ESCALATION_CONFIDENCE_THRESHOLD,
     JudgeRuling,
     Verdict,
 )
@@ -54,10 +55,19 @@ class JudgeAgent(Agent):
         *,
         claim_id: str,
         findings: list[AgentFinding],
+        blocking_conditions: list[str] | None = None,
         debate_history: list[dict[str, Any]] | None = None,
         decision_path: DecisionPath | None = None,
     ) -> JudgeRuling:
-        """Produce a binding ruling from analyst findings + debate."""
+        """Produce a binding ruling from analyst findings + debate.
+
+        ``blocking_conditions`` is a code-owned list (e.g. missing policy /
+        identity documents, an unavailable analyst). When non-empty, the code
+        guard below forces the outcome to REVIEW (``Verdict.FLAG`` +
+        ``requires_human_review``), overriding whatever the LLM suggested — a
+        claim is never auto-approved or auto-rejected while blocking
+        conditions are outstanding (design §8.6).
+        """
         findings_summary = [
             {
                 "agent": f.agent.value,
@@ -89,6 +99,13 @@ class JudgeAgent(Agent):
         reasoning = parsed.get("reasoning", "No rationale")
         dissenting = parsed.get("dissenting_agents", [])
         human_review = parsed.get("requires_human_review", False)
+
+        # --- Code guard: blocking conditions force REVIEW (design §8.6) ---
+        # Overrides an LLM "approve"/"reject" with flag + human review when any
+        # blocking condition is outstanding (unit-tested via TC7/TC8).
+        if blocking_conditions:
+            verdict = Verdict.FLAG
+            human_review = True
 
         # Recall relevant precedents
         similar = await self.memory.recall(
@@ -124,7 +141,8 @@ class JudgeAgent(Agent):
             dissenting_agents=dissenting_roles,
             rationale=reasoning,
             decision_path=dp,
-            requires_human_review=human_review or conf_value < 0.8,
+            requires_human_review=human_review
+            or conf_value < HUMAN_ESCALATION_CONFIDENCE_THRESHOLD,
         )
 
     async def analyze(

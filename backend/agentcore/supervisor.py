@@ -6,17 +6,23 @@ that drives claims through the multi-agent pipeline. It owns the
 next based on:
 - The current ``ClaimStage``
 - The results returned by agents it dispatches work to
-- Disagreement detection (do analysts' verdicts conflict?)
-- Confidence thresholds (does any finding require escalation?)
+- Disagreement detection (do analysts' verdicts conflict?) — recorded as
+  evidence only; it never decides the outcome
+- The Judge's ruling, which is the single decision authority
 
 Workflow state machine:
   INGESTED -> SCANNING -> OCR_EXTRACTION -> VALIDATION
-  -> PARALLEL_ANALYSIS (fan-out to 4 analysts concurrently)
-  -> (if consensus) COMMUNICATION -> COMPLETED
-  -> (if disagreement) DEBATE (up to MAX_DEBATE_ROUNDS)
-  -> (if still unresolved) JUDGMENT (Judge agent rules)
-  -> (if confidence < 0.80) HUMAN_ESCALATION
-  -> (otherwise) COMMUNICATION -> COMPLETED | REJECTED
+  -> PARALLEL_ANALYSIS (the four analysts, spaced by a rate-limit delay)
+  -> DEBATE (only when analysts disagree — records DebateRounds as evidence)
+  -> JUDGMENT (the Judge ALWAYS rules; blocking conditions force REVIEW)
+  -> (if requires_human_review / blocking) HUMAN_ESCALATION
+  -> COMMUNICATION -> COMPLETED | REJECTED
+
+Resilience (design §14): one agent failing never crashes the pipeline. Each
+stage wraps its agent call; on ``LLMAllProvidersFailedError``/``Exception`` it
+synthesizes a role-keyed ABSTAIN finding (tagged ``agent_unavailable``),
+records an ``error`` step log, and continues. For an OCR failure the Master
+Claim Form stays the all-MISSING baseline so nothing is fabricated.
 
 The Supervisor talks to agents by awaiting their ``analyze()`` directly
 (in-process mode) rather than going through the message bus — this is
@@ -29,6 +35,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from typing import Any
 
 from .agents.communication import CommunicationAgent
@@ -40,17 +47,19 @@ from .agents.policy_expert import PolicyExpertAgent
 from .agents.risk_assessment import RiskAssessmentAgent
 from .agents.scanner import ScannerAgent
 from .agents.validator import ValidatorAgent
+from .llm import LLMAllProvidersFailedError
 from .protocol import (
+    AGENT_DISPLAY_NAMES,
     AgentFinding,
     AgentRole,
     ClaimStage,
     ClaimWorkflowState,
+    ConfidenceScore,
     DebateRound,
     DecisionPath,
     DecisionStep,
     EscalationReason,
     HumanEscalation,
-    HUMAN_ESCALATION_CONFIDENCE_THRESHOLD,
     JudgeRuling,
     PARALLEL_ANALYST_ROLES,
     Verdict,
@@ -112,15 +121,24 @@ class Supervisor:
             stage=ClaimStage.INGESTED,
             decision_path=dp,
         )
+        # Private runtime carriers (plain attribute assignment per protocol
+        # convention — these are not part of the serialized state model).
+        state._extracted_claim = {}  # type: ignore[attr-defined]
+        state._comm_drafts = {}  # type: ignore[attr-defined]
+        state._step_logs = []  # type: ignore[attr-defined]
+        state._agent_claim = {}  # type: ignore[attr-defined]
+        state._jurisdiction = None  # type: ignore[attr-defined]
+        self._trace_id = file_meta.get("trace_id") if file_meta else None  # type: ignore[attr-defined]
 
         try:
-            state = await self._run_scanning(state, file_meta or {})
+            file_meta = file_meta or {}
+            state = await self._run_scanning(state, file_meta)
             if state.stage in (ClaimStage.REJECTED, ClaimStage.FAILED):
                 return state
 
             await asyncio.sleep(1.5)  # Rate limit delay
 
-            state = await self._run_ocr(state, raw_text)
+            state = await self._run_ocr(state, raw_text, file_meta)
             if state.stage in (ClaimStage.REJECTED, ClaimStage.FAILED):
                 return state
 
@@ -135,6 +153,7 @@ class Supervisor:
 
             state = await self._run_parallel_analysis(state)
             state = await self._resolve_disagreement(state)
+            state = await self._run_judgment(state)
             state = await self._run_communication(state)
 
         except Exception as exc:
@@ -159,9 +178,22 @@ class Supervisor:
         self, state: ClaimWorkflowState, file_meta: dict[str, Any]
     ) -> ClaimWorkflowState:
         state.stage = ClaimStage.SCANNING
-        finding = await self.scanner.analyze(
-            claim_id=state.claim_id, claim={"file_meta": file_meta}
-        )
+        started = time.perf_counter()
+        try:
+            finding = await self.scanner.analyze(
+                claim_id=state.claim_id, claim={"file_meta": file_meta}
+            )
+        except (LLMAllProvidersFailedError, Exception) as exc:  # noqa: BLE001
+            logger.error("Scanner failed: %s", exc)
+            finding = self._abstain_finding(AgentRole.SCANNER, state.claim_id, exc)
+            state.findings.append(finding)
+            self._log_step(
+                state, AgentRole.SCANNER, "scanned_document",
+                started=started, status="error", finding=finding, error=str(exc),
+                input_summary="file_meta",
+            )
+            return state
+
         state.findings.append(finding)
         state.decision_path = state.decision_path.append(
             DecisionStep(
@@ -171,16 +203,65 @@ class Supervisor:
                 confidence=finding.confidence,
             )
         )
+        self._log_step(
+            state, AgentRole.SCANNER, "scanned_document",
+            started=started, status="ok", finding=finding,
+            input_summary="file_meta", output_summary=finding.reasoning[:120],
+        )
         if finding.verdict == Verdict.REJECT:
             state.stage = ClaimStage.REJECTED
         return state
 
     async def _run_ocr(
-        self, state: ClaimWorkflowState, raw_text: str
+        self,
+        state: ClaimWorkflowState,
+        raw_text: str,
+        file_meta: dict[str, Any] | None = None,
     ) -> ClaimWorkflowState:
+        """Build the Master Claim Form ONCE (single widened extraction).
+
+        No second ``extract()``/``analyze()`` call — the OCR finding is derived
+        from the same extraction result (design §6.1 step 4 / §7).
+        """
         state.stage = ClaimStage.OCR_EXTRACTION
-        finding = await self.ocr.analyze(
-            claim_id=state.claim_id, claim={"raw_text": raw_text}
+        source_document = (file_meta or {}).get("filename")
+        started = time.perf_counter()
+
+        try:
+            form, extracted = await self.ocr.build_master_form(
+                claim_id=state.claim_id,
+                raw_text=raw_text,
+                source_document=source_document,
+            )
+        except (LLMAllProvidersFailedError, Exception) as exc:  # noqa: BLE001
+            logger.error("OCR failed: %s", exc)
+            # Leave master_form as the all-MISSING baseline so nothing is
+            # fabricated; synthesize an ABSTAIN finding and continue.
+            from .claim_model import build_empty_master_form, infer_jurisdiction
+
+            profile = infer_jurisdiction(raw_text, None)
+            form = build_empty_master_form(state.claim_id, profile)
+            state.master_form = form.model_dump(mode="json")
+            state._extracted_claim = {}  # type: ignore[attr-defined]
+            state._jurisdiction = profile  # type: ignore[attr-defined]
+            state._agent_claim = self._build_agent_claim(form, profile, {})  # type: ignore[attr-defined]
+            finding = self._abstain_finding(AgentRole.OCR, state.claim_id, exc)
+            state.findings.append(finding)
+            self._log_step(
+                state, AgentRole.OCR, "extracted_fields",
+                started=started, status="error", finding=finding, error=str(exc),
+                input_summary=f"raw_text[{len(raw_text)}]",
+            )
+            return state
+
+        profile = form.jurisdiction
+        state.master_form = form.model_dump(mode="json")
+        state._extracted_claim = extracted  # type: ignore[attr-defined]
+        state._jurisdiction = profile  # type: ignore[attr-defined]
+        state._agent_claim = self._build_agent_claim(form, profile, extracted)  # type: ignore[attr-defined]
+
+        finding = self.ocr.finding_from_extraction(
+            claim_id=state.claim_id, extracted=extracted, raw_text=raw_text
         )
         state.findings.append(finding)
         state.decision_path = state.decision_path.append(
@@ -191,24 +272,35 @@ class Supervisor:
                 confidence=finding.confidence,
             )
         )
-        # Store extracted data on the state for downstream agents
-        # OCR agent puts extracted fields in its finding's referenced_fields
-        # but the real data lives in the extract() return — we call it here
-        extracted = await self.ocr.extract(
-            claim_id=state.claim_id, raw_text=raw_text
+        self._log_step(
+            state, AgentRole.OCR, "extracted_fields",
+            started=started, status="ok", finding=finding,
+            input_summary=f"raw_text[{len(raw_text)}]",
+            output_summary=finding.reasoning[:120],
         )
-        # Attach extracted claim data for downstream use
-        state._extracted_claim = extracted  # type: ignore[attr-defined]
         return state
 
     async def _run_validation(
         self, state: ClaimWorkflowState
     ) -> ClaimWorkflowState:
         state.stage = ClaimStage.VALIDATION
-        claim_data = getattr(state, "_extracted_claim", {})
-        finding = await self.validator.analyze(
-            claim_id=state.claim_id, claim=claim_data
-        )
+        claim_data = self._agent_claim(state)
+        started = time.perf_counter()
+        try:
+            finding = await self.validator.analyze(
+                claim_id=state.claim_id, claim=claim_data
+            )
+        except (LLMAllProvidersFailedError, Exception) as exc:  # noqa: BLE001
+            logger.error("Validator failed: %s", exc)
+            finding = self._abstain_finding(AgentRole.VALIDATOR, state.claim_id, exc)
+            state.findings.append(finding)
+            self._log_step(
+                state, AgentRole.VALIDATOR, "validated_fields",
+                started=started, status="error", finding=finding, error=str(exc),
+                input_summary="master_form",
+            )
+            return state
+
         state.findings.append(finding)
         state.decision_path = state.decision_path.append(
             DecisionStep(
@@ -217,6 +309,11 @@ class Supervisor:
                 summary=finding.reasoning,
                 confidence=finding.confidence,
             )
+        )
+        self._log_step(
+            state, AgentRole.VALIDATOR, "validated_fields",
+            started=started, status="ok", finding=finding,
+            input_summary="master_form", output_summary=finding.reasoning[:120],
         )
         if finding.verdict == Verdict.REJECT:
             state.stage = ClaimStage.REJECTED
@@ -227,10 +324,11 @@ class Supervisor:
     ) -> ClaimWorkflowState:
         """Run analyst agents sequentially with delays to avoid rate limits."""
         state.stage = ClaimStage.PARALLEL_ANALYSIS
-        claim_data = getattr(state, "_extracted_claim", {})
+        claim_data = self._agent_claim(state)
 
         # Run sequentially with delay to respect Groq free-tier rate limits
         for role in PARALLEL_ANALYST_ROLES:
+            started = time.perf_counter()
             try:
                 finding = await self._analysts[role].analyze(
                     claim_id=state.claim_id, claim=claim_data
@@ -244,23 +342,35 @@ class Supervisor:
                         confidence=finding.confidence,
                     )
                 )
-            except Exception as exc:
+                self._log_step(
+                    state, role, "analyzed_claim",
+                    started=started, status="ok", finding=finding,
+                    input_summary="master_form",
+                    output_summary=finding.reasoning[:120],
+                )
+                # Risk agent may publish a decomposed RiskBreakdown on the state.
+                self._capture_risk_breakdown(state, role, finding)
+            except (LLMAllProvidersFailedError, Exception) as exc:  # noqa: BLE001
                 logger.error("Analyst %s failed: %s", role.value, exc)
+                finding = self._abstain_finding(role, state.claim_id, exc)
+                state.findings.append(finding)
+                self._log_step(
+                    state, role, "analyzed_claim",
+                    started=started, status="error", finding=finding, error=str(exc),
+                    input_summary="master_form",
+                )
             # Small delay between calls to avoid rate limiting
             await asyncio.sleep(1.5)
         return state
 
     # ------------------------------------------------------------------
-    # Disagreement resolution
+    # Disagreement resolution (debate-only — never decides the outcome)
     # ------------------------------------------------------------------
 
-    def _detect_disagreement(
-        self, state: ClaimWorkflowState
-    ) -> bool:
+    def _detect_disagreement(self, state: ClaimWorkflowState) -> bool:
         """True if analyst findings disagree on verdict."""
         analyst_findings = [
-            f for f in state.findings
-            if f.agent in PARALLEL_ANALYST_ROLES
+            f for f in state.findings if f.agent in PARALLEL_ANALYST_ROLES
         ]
         if len(analyst_findings) < 2:
             return False
@@ -272,36 +382,25 @@ class Supervisor:
         if Verdict.FLAG in verdicts and Verdict.APPROVE in verdicts:
             return True
         # Any finding below escalation threshold
-        if any(
-            f.confidence.requires_escalation for f in analyst_findings
-        ):
+        if any(f.confidence.requires_escalation for f in analyst_findings):
             return True
         return False
 
     async def _resolve_disagreement(
         self, state: ClaimWorkflowState
     ) -> ClaimWorkflowState:
-        """Handle disagreement: debate rounds then judge ruling."""
+        """Run debate rounds when analysts disagree — EVIDENCE ONLY.
+
+        This stage no longer sets any final verdict and no longer escalates:
+        the Judge (``_run_judgment``) is the single decision authority. Debate
+        rounds are recorded on ``state.debate_rounds`` purely as evidence
+        inputs the Judge may weigh (design §7 / §8.6).
+        """
         if not self._detect_disagreement(state):
-            # Consensus — take majority verdict
-            analyst_findings = [
-                f for f in state.findings
-                if f.agent in PARALLEL_ANALYST_ROLES
-            ]
-            if analyst_findings:
-                # Simple majority
-                verdicts = [f.verdict for f in analyst_findings]
-                if verdicts.count(Verdict.APPROVE) > len(verdicts) // 2:
-                    state._consensus_verdict = Verdict.APPROVE  # type: ignore[attr-defined]
-                elif verdicts.count(Verdict.REJECT) > len(verdicts) // 2:
-                    state._consensus_verdict = Verdict.REJECT  # type: ignore[attr-defined]
-                else:
-                    state._consensus_verdict = Verdict.FLAG  # type: ignore[attr-defined]
             return state
 
-        # --- Debate Mode ---
         state.stage = ClaimStage.DEBATE
-        claim_data = getattr(state, "_extracted_claim", {})
+        claim_data = self._agent_claim(state)
         analyst_findings = [
             f for f in state.findings if f.agent in PARALLEL_ANALYST_ROLES
         ]
@@ -310,18 +409,22 @@ class Supervisor:
             debate_round = DebateRound(
                 round_number=round_num, claim_id=state.claim_id
             )
-            # Each analyst votes
-            votes = await asyncio.gather(*[
-                self._analysts[role].cast_vote(
-                    claim_id=state.claim_id,
-                    claim=claim_data,
-                    context={"findings": [
-                        f.model_dump(mode="json") for f in analyst_findings
-                    ]},
-                )
-                for role in PARALLEL_ANALYST_ROLES
-                if role in self._analysts
-            ], return_exceptions=True)
+            votes = await asyncio.gather(
+                *[
+                    self._analysts[role].cast_vote(
+                        claim_id=state.claim_id,
+                        claim=claim_data,
+                        context={
+                            "findings": [
+                                f.model_dump(mode="json") for f in analyst_findings
+                            ]
+                        },
+                    )
+                    for role in PARALLEL_ANALYST_ROLES
+                    if role in self._analysts
+                ],
+                return_exceptions=True,
+            )
 
             for v in votes:
                 if not isinstance(v, Exception):
@@ -330,23 +433,73 @@ class Supervisor:
             debate_round.closed_at = now_utc()
             state.debate_rounds.append(debate_round)
 
-            # Check for super-majority after voting
+            # Stop early once the analysts have clearly converged, but DO NOT
+            # record any verdict here — the Judge still rules.
             choices = [v.choice.value for v in debate_round.votes]
-            for choice in ("approve", "reject", "escalate"):
-                if choices.count(choice) >= 3:
-                    state._consensus_verdict = Verdict(choice) if choice != "escalate" else Verdict.FLAG  # type: ignore[attr-defined]
-                    return state
+            if any(choices.count(c) >= 3 for c in ("approve", "reject", "escalate")):
+                break
 
-        # --- No consensus after debate -> Judge rules ---
+        return state
+
+    # ------------------------------------------------------------------
+    # Judgment — always runs; the single decision authority
+    # ------------------------------------------------------------------
+
+    async def _run_judgment(
+        self, state: ClaimWorkflowState
+    ) -> ClaimWorkflowState:
+        """Always run the Judge over findings + blocking conditions.
+
+        Blocking conditions (read off the serialized ``RiskBreakdown``) force a
+        REVIEW outcome inside ``rule()``. On a non-empty blocking set or
+        ``requires_human_review``, the stage escalates to a human and creates a
+        ``HumanEscalation`` record (design §8.6).
+        """
         state.stage = ClaimStage.JUDGMENT
-        ruling = await self.judge.rule(
-            claim_id=state.claim_id,
-            findings=analyst_findings,
-            debate_history=[
-                dr.model_dump(mode="json") for dr in state.debate_rounds
-            ],
-            decision_path=state.decision_path,
-        )
+        analyst_findings = [
+            f for f in state.findings if f.agent in PARALLEL_ANALYST_ROLES
+        ]
+        blocking = (state.risk_breakdown or {}).get("blocking_conditions", []) or []
+        started = time.perf_counter()
+
+        try:
+            ruling = await self.judge.rule(
+                claim_id=state.claim_id,
+                findings=analyst_findings,
+                blocking_conditions=blocking,
+                debate_history=[
+                    dr.model_dump(mode="json") for dr in state.debate_rounds
+                ],
+                decision_path=state.decision_path,
+            )
+            self._log_step(
+                state, AgentRole.JUDGE, "issued_ruling",
+                started=started, status="ok",
+                input_summary=f"findings[{len(analyst_findings)}]",
+                output_summary=f"verdict={ruling.verdict.value}",
+                confidence=ruling.confidence,
+            )
+        except (LLMAllProvidersFailedError, Exception) as exc:  # noqa: BLE001
+            logger.error("Judge failed: %s", exc)
+            # The Judge being unavailable must never silently approve — route
+            # to REVIEW / human escalation.
+            ruling = JudgeRuling(
+                claim_id=state.claim_id,
+                verdict=Verdict.FLAG,
+                confidence=self._confidence(0.3, f"judge unavailable: {exc}"),
+                rationale="Judge unavailable; routed to human review.",
+                decision_path=state.decision_path,
+                requires_human_review=True,
+            )
+            blocking = [*blocking, "judge_unavailable"]
+            finding = self._abstain_finding(AgentRole.JUDGE, state.claim_id, exc)
+            state.findings.append(finding)
+            self._log_step(
+                state, AgentRole.JUDGE, "issued_ruling",
+                started=started, status="error", finding=finding, error=str(exc),
+                input_summary=f"findings[{len(analyst_findings)}]",
+            )
+
         state.ruling = ruling
         state.decision_path = state.decision_path.append(
             DecisionStep(
@@ -357,66 +510,220 @@ class Supervisor:
             )
         )
 
-        # Escalation check
-        if ruling.requires_human_review or ruling.confidence.requires_escalation:
+        # Backward-compat for any legacy reader; the authoritative decision is
+        # state.ruling.verdict.
+        state._consensus_verdict = ruling.verdict  # type: ignore[attr-defined]
+
+        if ruling.requires_human_review or blocking:
             state.stage = ClaimStage.HUMAN_ESCALATION
+            reason = (
+                EscalationReason.LOW_CONFIDENCE
+                if ruling.confidence.requires_escalation
+                else EscalationReason.UNRESOLVED_DEBATE
+            )
             state.escalation = HumanEscalation(
                 claim_id=state.claim_id,
-                reason=EscalationReason.UNRESOLVED_DEBATE
-                if not ruling.confidence.requires_escalation
-                else EscalationReason.LOW_CONFIDENCE,
+                reason=reason,
                 triggered_by=AgentRole.JUDGE,
                 confidence_at_escalation=ruling.confidence,
                 decision_path=state.decision_path,
             )
-            return state
-
-        state._consensus_verdict = ruling.verdict  # type: ignore[attr-defined]
         return state
 
     async def _run_communication(
         self, state: ClaimWorkflowState
     ) -> ClaimWorkflowState:
-        """Draft outbound communications and mark complete."""
-        if state.stage in (
-            ClaimStage.HUMAN_ESCALATION,
-            ClaimStage.REJECTED,
-            ClaimStage.FAILED,
-        ):
+        """Draft outbound communications from the Judge's final decision."""
+        # Always initialize the carrier so /process never reads an unset value.
+        state._comm_drafts = {}  # type: ignore[attr-defined]
+
+        if state.stage in (ClaimStage.REJECTED, ClaimStage.FAILED):
             return state
 
-        state.stage = ClaimStage.COMMUNICATION
-        verdict = getattr(state, "_consensus_verdict", Verdict.FLAG)
-        claim_data = getattr(state, "_extracted_claim", {})
+        # The Judge's final decision drives the communications (not a mix of
+        # raw analyst reasoning).
+        if state.ruling is not None:
+            verdict = state.ruling.verdict
+            reasoning = state.ruling.rationale
+        else:
+            verdict = getattr(state, "_consensus_verdict", Verdict.FLAG)
+            reasoning = "Claim routed to review."
 
-        reasoning_parts = [
-            f.reasoning for f in state.findings
-            if f.agent in PARALLEL_ANALYST_ROLES
-        ]
-        combined_reasoning = " | ".join(reasoning_parts[:4])
-
-        drafts = await self.communication.draft(
-            claim_id=state.claim_id,
-            decision=verdict.value,
-            reasoning=combined_reasoning[:500],
-            claim=claim_data,
+        human_review = (
+            state.stage == ClaimStage.HUMAN_ESCALATION
+            or (state.ruling is not None and state.ruling.requires_human_review)
         )
-        state.decision_path = state.decision_path.append(
-            DecisionStep(
-                agent=AgentRole.COMMUNICATION,
-                action="drafted_communications",
-                summary=f"Decision: {verdict.value}",
+        decision_label = (
+            "REVIEW"
+            if human_review and verdict != Verdict.REJECT
+            else verdict.value
+        )
+
+        claim_data = self._agent_claim(state)
+        started = time.perf_counter()
+
+        # Don't downgrade an escalation stage; use a working stage marker only
+        # when we're on the completion path.
+        if not human_review:
+            state.stage = ClaimStage.COMMUNICATION
+
+        try:
+            drafts = await self.communication.draft(
+                claim_id=state.claim_id,
+                decision=decision_label,
+                reasoning=reasoning[:500],
+                claim=claim_data,
             )
-        )
+            if isinstance(drafts, dict):
+                state._comm_drafts = drafts  # type: ignore[attr-defined]
+            state.decision_path = state.decision_path.append(
+                DecisionStep(
+                    agent=AgentRole.COMMUNICATION,
+                    action="drafted_communications",
+                    summary=f"Decision: {decision_label}",
+                )
+            )
+            self._log_step(
+                state, AgentRole.COMMUNICATION, "drafted_communications",
+                started=started, status="ok",
+                input_summary=f"decision={decision_label}",
+                output_summary="drafts_ready",
+            )
+        except (LLMAllProvidersFailedError, Exception) as exc:  # noqa: BLE001
+            logger.error("Communication failed: %s", exc)
+            # Leave _comm_drafts as the initialized {} so /process degrades to
+            # its default templates.
+            finding = self._abstain_finding(
+                AgentRole.COMMUNICATION, state.claim_id, exc
+            )
+            state.findings.append(finding)
+            self._log_step(
+                state, AgentRole.COMMUNICATION, "drafted_communications",
+                started=started, status="error", finding=finding, error=str(exc),
+                input_summary=f"decision={decision_label}",
+            )
 
-        # Final state
-        if verdict == Verdict.REJECT:
+        # Final stage: don't override an escalation.
+        if state.stage == ClaimStage.HUMAN_ESCALATION:
+            pass
+        elif verdict == Verdict.REJECT:
             state.stage = ClaimStage.REJECTED
         else:
             state.stage = ClaimStage.COMPLETED
 
         state.updated_at = now_utc()
         return state
+
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+
+    def _build_agent_claim(
+        self,
+        form: Any,
+        profile: Any,
+        extracted: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Enriched claim dict threaded to every downstream agent (design §7).
+
+        ``{**form.model_dump(mode="json"), "jurisdiction": profile.model_dump(),
+        "raw_extracted": extracted}``. Agents read structured, provenance-tagged
+        values but still tolerate the thin legacy shape via ``.get()``.
+        """
+        agent_claim = form.model_dump(mode="json")
+        agent_claim["jurisdiction"] = profile.model_dump()
+        agent_claim["raw_extracted"] = extracted
+        return agent_claim
+
+    def _agent_claim(self, state: ClaimWorkflowState) -> dict[str, Any]:
+        """The enriched claim dict, falling back to the raw extraction."""
+        agent_claim = getattr(state, "_agent_claim", None)
+        if agent_claim:
+            return agent_claim
+        return getattr(state, "_extracted_claim", {}) or {}
+
+    def _capture_risk_breakdown(
+        self, state: ClaimWorkflowState, role: AgentRole, finding: AgentFinding
+    ) -> None:
+        """Pull a serialized RiskBreakdown off the Risk agent if it published one.
+
+        The Risk agent (FEAT-003) will attach its decomposed ``RiskBreakdown``;
+        until then this is a no-op unless the finding carries one. Kept here so
+        ``state.risk_breakdown`` is populated the moment the Risk agent lands.
+        """
+        if role != AgentRole.RISK_ASSESSMENT:
+            return
+        rb = getattr(finding, "_risk_breakdown", None)
+        if rb is None:
+            return
+        try:
+            state.risk_breakdown = (
+                rb.model_dump(mode="json") if hasattr(rb, "model_dump") else dict(rb)
+            )
+        except Exception:  # noqa: BLE001 - defensive; never fail on telemetry
+            logger.debug("Could not capture risk breakdown from %s", role.value)
+
+    @staticmethod
+    def _confidence(value: float, rationale: str) -> ConfidenceScore:
+        clamped = max(0.0, min(1.0, value))
+        return ConfidenceScore(value=clamped, rationale=rationale)
+
+    def _abstain_finding(
+        self, role: AgentRole, claim_id: str, exc: Exception
+    ) -> AgentFinding:
+        """A role-keyed ABSTAIN finding for an unavailable agent (design §14)."""
+        return AgentFinding(
+            agent=role,
+            claim_id=claim_id,
+            verdict=Verdict.ABSTAIN,
+            confidence=self._confidence(0.3, f"{role.value} unavailable: {exc}"),
+            reasoning=(
+                f"{role.value} could not complete analysis ({type(exc).__name__})."
+            ),
+            tags=["agent_unavailable"],
+        )
+
+    def _log_step(
+        self,
+        state: ClaimWorkflowState,
+        role: AgentRole,
+        action: str,
+        *,
+        started: float,
+        status: str,
+        finding: AgentFinding | None = None,
+        error: str | None = None,
+        input_summary: str = "",
+        output_summary: str = "",
+        confidence: ConfidenceScore | None = None,
+    ) -> None:
+        """Append a structured StepLog on ``state._step_logs`` (design §11.1).
+
+        This is the authoritative logs source for ``/process`` (no DB
+        dependency). Each row carries the agent display name, action, input/
+        output summaries, status, duration, confidence, error, and the
+        run's trace id as ``request_id``.
+        """
+        duration_ms = round((time.perf_counter() - started) * 1000, 2)
+        conf = confidence or (finding.confidence if finding else None)
+        logs: list[dict[str, Any]] = getattr(state, "_step_logs", None)
+        if logs is None:
+            logs = []
+            state._step_logs = logs  # type: ignore[attr-defined]
+        logs.append(
+            {
+                "agent": AGENT_DISPLAY_NAMES.get(role, role.value),
+                "agent_role": role.value,
+                "action": action,
+                "input_summary": input_summary,
+                "output_summary": output_summary,
+                "status": status,
+                "duration_ms": duration_ms,
+                "confidence": conf.value if conf else None,
+                "error": error,
+                "request_id": getattr(self, "_trace_id", None),
+            }
+        )
 
 
 __all__ = ["Supervisor", "MAX_DEBATE_ROUNDS"]
