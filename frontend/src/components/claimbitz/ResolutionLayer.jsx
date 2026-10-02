@@ -1,6 +1,6 @@
 import React from 'react'
 import { motion } from 'framer-motion'
-import { CheckCircle2, AlertTriangle, ArrowRight, Mail, RotateCcw, UserCheck } from 'lucide-react'
+import { CheckCircle2, AlertTriangle, ArrowRight, Clock, Mail, RotateCcw, UserCheck } from 'lucide-react'
 import { cn } from '../../lib/utils'
 
 /**
@@ -10,12 +10,18 @@ import { cn } from '../../lib/utils'
  * Uses ONLY real data from useClaimAgent results. Actions are limited to
  * functionality that genuinely exists in the application:
  *   onPortal    → navigate to /submission (insurer portal selection)
- *   onReprocess → call reset + re-enable processing
+ *   onReprocess → reset processing state, keep file for re-analysis
  *
  * Wording is truthful:
  *   "Continue to insurer portal" — NOT "Claim submitted"
- *   "Generate clarification"     — NOT "Clarification sent"
- *   "Human review required"      — NOT "Investigation started"
+ *   "Generated communications available"  — NOT "Clarification sent"
+ *   "Awaiting human review"     — NOT "Investigation started"
+ *
+ * resolutionStatus tracks the genuine operational state:
+ *   ready_to_submit  — LOW risk, can proceed to insurer portal
+ *   action_required  — MEDIUM risk, review and possibly re-process
+ *   awaiting_review  — HIGH risk, human decision needed
+ *   analyzed         — fallback, analysis complete
  */
 
 function deriveAction(recommendation, riskLabel) {
@@ -75,11 +81,20 @@ const TONES = {
   destructive: { bg: 'bg-destructive/10', text: 'text-destructive', Icon: AlertTriangle },
 }
 
+const STATUS_DISPLAY = {
+  ready_to_submit: { label: 'Ready for submission', tone: 'text-success', Icon: CheckCircle2 },
+  action_required: { label: 'Action required — review findings', tone: 'text-warning', Icon: AlertTriangle },
+  awaiting_review: { label: 'Awaiting human review', tone: 'text-warning', Icon: Clock },
+  analyzed: { label: 'Analysis complete', tone: 'text-muted-foreground', Icon: CheckCircle2 },
+}
+
 export function ResolutionLayer({
   recommendation,
   riskLabel,
   findings,
   riskReasons,
+  resolutionStatus,
+  actionLog,
   onPortal,
   onReprocess,
 }) {
@@ -163,6 +178,30 @@ export function ResolutionLayer({
           </button>
         )}
       </div>
+
+      {/* Operational status — truthful state of what has happened */}
+      {resolutionStatus && (
+        <div className="border-t border-border px-5 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              {(() => {
+                const s = STATUS_DISPLAY[resolutionStatus] || STATUS_DISPLAY.analyzed
+                return (
+                  <>
+                    <s.Icon className={cn('h-3.5 w-3.5', s.tone)} />
+                    <span className={cn('text-[13px] font-semibold', s.tone)}>{s.label}</span>
+                  </>
+                )
+              })()}
+            </div>
+            {actionLog && actionLog.length > 0 && (
+              <span className="text-[11.5px] tabular-nums text-subtle-foreground">
+                {actionLog.length} {actionLog.length === 1 ? 'action' : 'actions'} taken
+              </span>
+            )}
+          </div>
+        </div>
+      )}
     </motion.section>
   )
 }
