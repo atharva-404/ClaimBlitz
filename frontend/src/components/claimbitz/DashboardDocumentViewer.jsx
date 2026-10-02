@@ -104,8 +104,8 @@ function CMS1500({ claim, scanning = false, focus = [], focusLabel }) {
           </div>
           <div className="grid grid-cols-2 border-b border-border md:grid-cols-3">
             <Field label="1a. Insured ID no." value={c.policyNumber} />
-            <Field label="11. Group no." value={c.policyNumber ? 'On file' : undefined} />
-            <Field label="Plan type" value={c.policyNumber ? 'Commercial' : undefined} />
+            <Field label="11. Group no." value={c.groupNumber} />
+            <Field label="Plan type" value={c.planType} />
           </div>
         </>
       ))}
@@ -118,8 +118,8 @@ function CMS1500({ claim, scanning = false, focus = [], focusLabel }) {
           <div className="grid grid-cols-2 border-b border-border md:grid-cols-4">
             <Field label="2. Patient name" value={c.patientName} />
             <Field label="3. Birth date" value={c.dob ? fmtDate(c.dob) : undefined} />
-            <Field label="6. Relationship" value={c.patientName ? 'Self' : undefined} />
-            <Field label="12. Signature" value={c.patientName ? 'On file' : undefined} />
+            <Field label="6. Relationship" value={c.relationship} />
+            <Field label="12. Signature" value={c.signature} />
           </div>
         </>
       ))}
@@ -173,11 +173,11 @@ function CMS1500({ claim, scanning = false, focus = [], focusLabel }) {
               <tbody className="text-foreground">
                 <tr className="border-b border-border last:border-b-0">
                   <td className="px-2.5 py-2 tabular-nums">{fmtDate(c.dateOfService)}</td>
-                  <td className="px-2.5 py-2 tabular-nums">{c.dateOfService ? '11' : '—'}</td>
+                  <td className="px-2.5 py-2 tabular-nums">{c.placeOfService || '—'}</td>
                   <td className="px-2.5 py-2 font-medium tabular-nums">{cpt || '—'}</td>
-                  <td className="px-2.5 py-2 tabular-nums">—</td>
+                  <td className="px-2.5 py-2 tabular-nums">{c.modifier || '—'}</td>
                   <td className="px-2.5 py-2 tabular-nums">{dx ? 'A' : '—'}</td>
-                  <td className="px-2.5 py-2 tabular-nums">{cpt ? '1' : '—'}</td>
+                  <td className="px-2.5 py-2 tabular-nums">{c.units || '—'}</td>
                   <td className="px-2.5 py-2 text-right font-medium tabular-nums">{billed}</td>
                 </tr>
               </tbody>

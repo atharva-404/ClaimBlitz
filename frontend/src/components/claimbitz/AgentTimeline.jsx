@@ -130,6 +130,14 @@ export function AgentTimeline({
                     <p className="mt-0.5 text-[12.5px] leading-snug text-foreground/80">
                       {status === 'failed' ? 'This step could not be completed' : agent.activity}
                     </p>
+                    {status === 'processing' && typeof agent.checks === 'number' && progress > 0 && (() => {
+                      const remaining = Math.max(1, Math.ceil(agent.checks * (1 - progress)))
+                      return (
+                        <p className={cn('mt-1 tabular-nums text-accent-foreground', compact ? 'text-[11px]' : 'text-[11.5px]')}>
+                          {remaining} {remaining === 1 ? 'check' : 'checks'} remaining
+                        </p>
+                      )
+                    })()}
                   </motion.div>
                 )}
               </AnimatePresence>

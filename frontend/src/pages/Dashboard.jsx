@@ -1,4 +1,4 @@
-import React, { useRef } from 'react'
+import React, { useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Link, useNavigate } from 'react-router-dom'
 import {
@@ -12,6 +12,7 @@ import { RiskPanel } from '../components/claimbitz/RiskPanel'
 import { GeneratedOutput } from '../components/claimbitz/GeneratedOutput'
 import { ProcessingLogs } from '../components/claimbitz/ProcessingLogs'
 import { AnimatedPercent } from '../components/claimbitz/RiskRing'
+import { ResolutionLayer } from '../components/claimbitz/ResolutionLayer'
 import { cn } from '../lib/utils'
 
 /* Derive the console status from real hook state. */
@@ -59,7 +60,7 @@ export default function Dashboard() {
   const navigate = useNavigate()
   const {
     agents, currentStep, isProcessing, isComplete,
-    results, riskScore, demoMode, setDemoMode,
+    results, riskScore, demoMode, setDemoMode, demoScenario, setDemoScenario,
     terminalLogs, uploadedFile, errorMessage, handleUpload, process, reset,
   } = useClaimAgent()
   const fileInputRef = useRef(null)
@@ -144,6 +145,31 @@ export default function Dashboard() {
               </button>
             </label>
 
+            {/* Demo risk scenario selector — only visible when demo mode is on */}
+            {demoMode && !isProcessing && (
+              <div className="hidden items-center gap-1 rounded-md border border-dashed border-warning/40 bg-warning/5 p-1 sm:flex">
+                {[
+                  { id: 'low', label: 'Low', tone: 'text-success' },
+                  { id: 'medium', label: 'Med', tone: 'text-warning' },
+                  { id: 'high', label: 'High', tone: 'text-destructive' },
+                ].map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => setDemoScenario(s.id)}
+                    className={cn(
+                      'rounded px-2 py-1 text-[11px] font-semibold uppercase tracking-wide transition-colors',
+                      demoScenario === s.id
+                        ? `${s.tone} bg-surface shadow-sm`
+                        : 'text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
             {(isComplete || status === 'error') && (
               <button
                 onClick={reset}
@@ -175,7 +201,7 @@ export default function Dashboard() {
         />
 
         {status === 'empty' ? (
-          <EmptyState onBrowse={() => fileInputRef.current?.click()} />
+          <EmptyState onBrowse={() => fileInputRef.current?.click()} onDrop={onDrop} />
         ) : (
           <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-12 lg:items-start">
             <div className="min-w-0 space-y-5 lg:col-span-8">
@@ -199,7 +225,7 @@ export default function Dashboard() {
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: 0.2, ease: 'easeOut' }}
+                  transition={{ duration: 0.45, delay: 0.6, ease: 'easeOut' }}
                   className="space-y-5"
                 >
                   <RiskPanel
@@ -208,6 +234,14 @@ export default function Dashboard() {
                     recommendation={results.recommendation}
                     reasons={results.riskReasons || []}
                     onSubmit={goSubmit}
+                  />
+                  <ResolutionLayer
+                    recommendation={results.recommendation}
+                    riskLabel={results.riskLabel}
+                    findings={results.findings}
+                    riskReasons={results.riskReasons}
+                    onPortal={goSubmit}
+                    onReprocess={reset}
                   />
                   <GeneratedOutput results={results} onSubmit={goSubmit} />
                 </motion.div>
@@ -388,7 +422,7 @@ function CommandPanel({
           className={cn('h-full origin-left', bar)}
           initial={false}
           animate={{ scaleX: barPct }}
-          transition={{ duration: status === 'processing' ? 0.3 : 0.5, ease: 'linear' }}
+          transition={{ duration: status === 'processing' ? 0.12 : 0.5, ease: 'linear' }}
         />
       </div>
     </section>
@@ -449,7 +483,8 @@ function ErrorState({ message, onRetry }) {
   )
 }
 
-function EmptyState({ onBrowse }) {
+function EmptyState({ onBrowse, onDrop }) {
+  const [drag, setDrag] = useState(false)
   return (
     <div className="mx-auto max-w-2xl py-12">
       <motion.div
@@ -465,7 +500,15 @@ function EmptyState({ onBrowse }) {
         <p className="mx-auto mt-2 max-w-md text-[14.5px] leading-relaxed text-muted-foreground">
           Upload a CMS-1500 claim document to start the agent pipeline. Supported formats: PDF, PNG, JPG, JPEG.
         </p>
-        <div className="mt-7 rounded-lg border border-dashed border-border-strong bg-surface-muted px-6 py-10">
+        <div
+          className={cn(
+            'mt-7 rounded-lg border border-dashed px-6 py-10 transition-colors',
+            drag ? 'border-primary bg-primary-subtle' : 'border-border-strong bg-surface-muted',
+          )}
+          onDragOver={(e) => { e.preventDefault(); setDrag(true) }}
+          onDragLeave={() => setDrag(false)}
+          onDrop={(e) => { e.preventDefault(); setDrag(false); onDrop?.(e) }}
+        >
           <p className="text-[14.5px] font-semibold text-foreground">Drop a CMS-1500 claim here</p>
           <p className="mt-1 text-[13px] text-muted-foreground">or use demo mode from the header</p>
           <button

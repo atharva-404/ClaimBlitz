@@ -4,27 +4,47 @@ import { AlertTriangle, CheckCircle2, ChevronDown, Loader2, Terminal } from 'luc
 import { cn } from '../../lib/utils'
 
 /**
- * Processing logs — Lovable visual, REAL data.
+ * Parse a real log line into Lovable-style { level, agent, message } for
+ * three-column presentation. The data itself is never fabricated — only
+ * reformatted from the existing `[LEVEL] Agent: message` pattern.
+ */
+function parseLog(text) {
+  // Match patterns like "[SUCCESS] Scanner Agent: Demo claim..." or "[SYSTEM] Connected to..."
+  const m = text.match(/^\[(\w+)\]\s*(?:([^:]+?):\s*)?(.+)$/)
+  if (!m) return { level: '', agent: '', message: text }
+  const level = m[1] // SUCCESS, WARN, ERROR, DATA, SYSTEM, INFO, AGENT
+  let agent = (m[2] || '').trim()
+  let message = (m[3] || '').trim()
+  // Some logs are "[SYSTEM] Pipeline: ..." or "[AGENT] Pipeline: ..."
+  if (!agent && message) { agent = level === 'SYSTEM' ? 'System' : level; message = message }
+  // Shorten long agent names for the fixed-width column
+  if (agent.length > 12) agent = agent.split(' ')[0]
+  return { level, agent, message }
+}
+
+function levelColor(level) {
+  switch (level) {
+    case 'SUCCESS': return 'text-[#4ADE80]'
+    case 'WARN': return 'text-[#FBBF24]'
+    case 'ERROR': return 'text-[#F87171]'
+    case 'DATA': return 'text-[#E8965A]'
+    default: return 'text-terminal-foreground/80'
+  }
+}
+
+/**
+ * Processing logs — Lovable three-column visual, REAL data.
  * `logs` is the live terminalLogs array from useClaimAgent ({ text, timestamp }).
  * `state`: 'idle' | 'running' | 'complete' | 'failed'
  */
 export function ProcessingLogs({ logs = [], state = 'idle' }) {
-  // Collapsed by default to match Lovable's console presentation. Logs still
-  // stream and the header surfaces Streaming/Complete/Stopped status.
+  // Collapsed by default to match Lovable's console presentation.
   const [open, setOpen] = useState(false)
   const scrollRef = useRef(null)
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight
   }, [logs])
-
-  const colorFor = (text) =>
-    text.includes('[SUCCESS]') ? 'text-[#4ADE80]' :
-    text.includes('[WARN]') ? 'text-[#FBBF24]' :
-    text.includes('[ERROR]') ? 'text-[#F87171]' :
-    text.includes('[DATA]') ? 'text-[#E8965A]' :
-    text.includes('[SYSTEM]') ? 'text-terminal-foreground' :
-    'text-terminal-foreground/70'
 
   return (
     <section className="panel overflow-hidden">
@@ -33,8 +53,8 @@ export function ProcessingLogs({ logs = [], state = 'idle' }) {
         className="flex w-full items-center justify-between gap-3 px-5 py-3.5 text-left transition-colors hover:bg-surface-muted"
         aria-expanded={open}
       >
-        <span className="flex items-center gap-2.5">
-          <Terminal className="h-4 w-4 text-muted-foreground" />
+        <span className="flex min-w-0 items-center gap-2.5">
+          <Terminal className="h-4 w-4 shrink-0 text-muted-foreground" />
           <span className="whitespace-nowrap text-[15px] font-semibold text-foreground">Processing logs</span>
           <span className="rounded bg-surface-muted px-1.5 py-0.5 text-xs font-medium tabular-nums text-muted-foreground">
             {logs.length}<span className="hidden sm:inline"> events</span>
@@ -72,12 +92,16 @@ export function ProcessingLogs({ logs = [], state = 'idle' }) {
                   <span className="cursor-blink" />
                 </div>
               ) : (
-                logs.map((log, i) => (
-                  <div key={i} className="flex gap-3 whitespace-nowrap">
-                    <span className="shrink-0 tabular-nums text-terminal-muted">{log.timestamp}</span>
-                    <span className={colorFor(log.text)}>{log.text}</span>
-                  </div>
-                ))
+                logs.map((log, i) => {
+                  const { level, agent, message } = parseLog(log.text)
+                  return (
+                    <div key={i} className="flex gap-3 whitespace-nowrap">
+                      <span className="shrink-0 tabular-nums text-terminal-muted">{log.timestamp}</span>
+                      <span className="w-20 shrink-0 truncate text-primary-border">{agent}</span>
+                      <span className={levelColor(level)}>{message}</span>
+                    </div>
+                  )
+                })
               )}
               {state === 'running' && logs.length > 0 && (
                 <div className="flex gap-3">

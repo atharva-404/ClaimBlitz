@@ -145,7 +145,7 @@ export function WorkspacePreview() {
         <div className="p-4">
           <p className="eyebrow">AI processing timeline</p>
           <div className="mt-3">
-            <AgentTimeline agents={DEMO_AGENTS.slice(0, SHOWN)} activeIndex={done ? SHOWN : step} compact />
+            <AgentTimeline agents={DEMO_AGENTS.slice(0, SHOWN)} activeIndex={done ? SHOWN : step} compact progress={0.4} />
           </div>
         </div>
       </div>
