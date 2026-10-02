@@ -25,14 +25,67 @@ class EscalationResolveRequest(BaseModel):
 
 # -- Responses --
 
+class ProvenanceSummary(BaseModel):
+    """Status rollup across every scalar field of the Master Claim Form."""
+
+    extracted: int = 0
+    missing: int = 0
+    conflict: int = 0
+    lowConfidence: int = 0
+    verified: int = 0
+
+
 class ClaimStatusResponse(BaseModel):
     claim_id: str
     stage: str
     final_verdict: str | None = None
     risk_score: float | None = None
     risk_label: str | None = None
+    # Extended (design §11): the Judge decision block + provenance rollup for
+    # the stored claim. Both are None until the claim has been processed.
+    decision: dict[str, Any] | None = None
+    provenance_summary: ProvenanceSummary | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
+
+
+class MasterFormResponse(BaseModel):
+    """Wraps the serialized MasterClaimForm (authoritative schema lives in
+    ``claim_model.py``; typed as a dict here to avoid duplicating it)."""
+
+    claim_id: str
+    masterClaimForm: dict[str, Any]
+    jurisdiction: dict[str, Any] | None = None
+    provenanceSummary: ProvenanceSummary | None = None
+
+
+class DecisionResponse(BaseModel):
+    claim_id: str
+    decision: dict[str, Any]
+
+
+class FindingsResponse(BaseModel):
+    claim_id: str
+    agentFindings: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class ValidateResponse(BaseModel):
+    claim_id: str
+    verdict: str
+    findings: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class LogsResponse(BaseModel):
+    claim_id: str
+    logs: list[dict[str, Any]] = Field(default_factory=list)
+    persisted: bool = False
+
+
+class UploadResponse(BaseModel):
+    claim_id: str
+    stage: str
+    filename: str | None = None
+    message: str = "Claim stored; call /claims/{id}/extract or /claims/{id}/process to run."
 
 
 class ClaimSubmitResponse(BaseModel):
