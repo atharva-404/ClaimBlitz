@@ -7,6 +7,7 @@ import { cn } from '../lib/utils'
 const insurerNameMap = {
   aetna: 'Aetna Claim Portal',
   uhc: 'UnitedHealthcare Portal',
+  cigna: 'Cigna Healthcare Portal',
   bcbs: 'Blue Cross Blue Shield',
 }
 
