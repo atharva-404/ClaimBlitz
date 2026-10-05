@@ -43,13 +43,40 @@ class AgentCoreSettings(BaseSettings):
     openai_model: str = Field(default="gpt-4o-mini", alias="OPENAI_MODEL")
     openai_base_url: str = Field(default="https://api.openai.com/v1", alias="OPENAI_BASE_URL")
 
+    # KEY POOL (failover): comma-separated OpenAI keys tried in order. The
+    # single openai_api_key is always appended as a final fallback.
+    openai_api_keys: str = Field(default="", alias="OPENAI_API_KEYS")
+
+    # LAST-RESORT fallback provider (Groq) — tried only if all OpenAI keys fail.
+    groq_api_key: str = Field(default="", alias="GROQ_API_KEY")
+    groq_model: str = Field(default="openai/gpt-oss-20b", alias="GROQ_MODEL")
+    groq_base_url: str = Field(default="https://api.groq.com/openai/v1", alias="GROQ_BASE_URL")
+
+    @property
+    def openai_key_pool(self) -> list[str]:
+        """Ordered, de-duplicated list of OpenAI keys to try (pool + single)."""
+        keys: list[str] = []
+        for raw in (self.openai_api_keys or "").split(","):
+            k = raw.strip()
+            if k and k not in keys:
+                keys.append(k)
+        if self.openai_api_key and self.openai_api_key not in keys:
+            keys.append(self.openai_api_key)
+        return keys
+
     # FALLBACK: Ollama (local, free)
     ollama_base_url: str = Field(default="http://localhost:11434", alias="OLLAMA_BASE_URL")
     ollama_model: str = Field(default="llama3.1:8b", alias="OLLAMA_MODEL")
 
-    # Legacy Gemini config (kept for backward compat but no longer primary)
+    # Gemini — used for VISION OCR of scanned/image PDFs (not the agent LLM).
     gemini_api_key: str = Field(default="", alias="GEMINI_API_KEY")
-    gemini_model: str = Field(default="gemini-2.0-flash", alias="GEMINI_MODEL")
+    gemini_model: str = Field(default="gemini-3.8-flash", alias="GEMINI_MODEL")
+
+    # -- Vision OCR -----------------------------------------------------------
+    # Cap pages sent to Gemini for scanned PDFs so a long scan doesn't make a
+    # live run wait on dozens of sequential vision calls. The most informative
+    # pages (settlement slip, bill, discharge summary) are usually at the front.
+    vision_ocr_max_pages: int = Field(default=6, alias="VISION_OCR_MAX_PAGES")
 
     # Shared LLM settings
     llm_temperature: float = Field(default=0.1, alias="LLM_TEMPERATURE")

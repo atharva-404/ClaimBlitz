@@ -47,7 +47,46 @@ def _extract_first_json_object(raw_text: str) -> str:
             if depth == 0:
                 return raw_text[start : idx + 1]
 
-    raise ValueError("Unbalanced JSON object in model response")
+    # Truncated response (model cut off before closing). Best-effort repair:
+    # close any open string and balance the remaining braces so a nearly
+    # complete object is still usable instead of being discarded entirely.
+    return _repair_truncated_json(raw_text, start)
+
+
+def _repair_truncated_json(raw_text: str, start: int) -> str:
+    """Close an unbalanced/truncated JSON object as best we can."""
+    frag = raw_text[start:]
+    depth = 0
+    in_string = False
+    escaped = False
+    for ch in frag:
+        if escaped:
+            escaped = False
+            continue
+        if ch == "\\":
+            escaped = True
+            continue
+        if ch == '"':
+            in_string = not in_string
+            continue
+        if in_string:
+            continue
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+
+    repaired = frag
+    # Drop a trailing partial token after the last complete comma/brace so the
+    # closing braces attach to valid content.
+    if in_string:
+        repaired += '"'
+    # Trim a dangling trailing comma or colon that would make closing invalid.
+    repaired = repaired.rstrip()
+    while repaired and repaired[-1] in ",:":
+        repaired = repaired[:-1].rstrip()
+    repaired += "}" * max(depth, 0)
+    return repaired
 
 
 def parse_json_response(raw_text: str) -> dict[str, Any]:
@@ -61,7 +100,25 @@ def parse_json_response(raw_text: str) -> dict[str, Any]:
         pass
 
     extracted = _extract_first_json_object(cleaned)
-    parsed = json.loads(extracted)
+    try:
+        parsed = json.loads(extracted)
+    except JSONDecodeError:
+        # Last-ditch: strip any trailing partial key/value and retry.
+        parsed = json.loads(_truncate_to_last_complete(extracted))
     if not isinstance(parsed, dict):
         raise ValueError("Expected JSON object response")
     return parsed
+
+
+def _truncate_to_last_complete(text: str) -> str:
+    """Cut a repaired object back to its last complete value + close braces."""
+    # Find the last closing brace and keep up to there; if none, give up to {}.
+    last = text.rfind("}")
+    if last != -1:
+        candidate = text[: last + 1]
+        try:
+            json.loads(candidate)
+            return candidate
+        except JSONDecodeError:
+            pass
+    return "{}"

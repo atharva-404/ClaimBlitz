@@ -15,6 +15,7 @@ is used (1536 dimensions by default).
 from __future__ import annotations
 
 import json
+import logging
 import sys
 import time
 from dataclasses import dataclass
@@ -31,6 +32,8 @@ if _BACKEND_ROOT not in sys.path:
 from utils.json_cleaner import parse_json_response  # noqa: E402
 
 from .settings import AgentCoreSettings, get_settings  # noqa: E402
+
+logger = logging.getLogger(__name__)
 
 
 class LLMProviderError(RuntimeError):
@@ -83,13 +86,31 @@ class OpenAIProvider:
 
         client = AsyncOpenAI(api_key=self._api_key, base_url=self._base_url, timeout=timeout)
         try:
-            response = await client.chat.completions.create(
-                model=self._model,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=temperature,
-                max_tokens=max_tokens,
-                response_format={"type": "json_object"},
-            )
+            # Enable native JSON mode ONLY for genuine OpenAI endpoints — their
+            # implementation is reliable and guarantees valid JSON. We do NOT
+            # use it on Groq, whose strict server-side validation hard-rejects a
+            # response ("json_validate_failed", empty content) on the slightest
+            # malformation from a reasoning model. For non-OpenAI we rely on the
+            # system-prompt instruction + tolerant ``parse_json_response``.
+            kwargs: dict[str, Any] = {
+                "model": self._model,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are a precise assistant. Respond with ONLY a "
+                            "single valid JSON object — no markdown fences, no "
+                            "prose before or after."
+                        ),
+                    },
+                    {"role": "user", "content": prompt},
+                ],
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+            }
+            if "openai.com" in (self._base_url or ""):
+                kwargs["response_format"] = {"type": "json_object"}
+            response = await client.chat.completions.create(**kwargs)
             text = response.choices[0].message.content or ""
             if not text.strip():
                 raise LLMProviderError("OpenAI returned an empty response")
@@ -162,18 +183,47 @@ class AsyncLLMClient:
         self._settings = settings or get_settings()
         self._http = httpx.AsyncClient()
 
-        self._openai: OpenAIProvider | None = None
-        if self._settings.openai_api_key and not self._settings.use_ollama_only:
-            self._openai = OpenAIProvider(
-                api_key=self._settings.openai_api_key,
-                model=self._settings.openai_model,
-                base_url=self._settings.openai_base_url,
-            )
+        # Build an ordered pool of providers for failover. Each pooled OpenAI
+        # key becomes its own provider; if one fails (invalid/quota/rate limit)
+        # the next is tried automatically. Groq is appended as a last resort,
+        # then Ollama. This is what keeps the demo from ever showing an error.
+        self._providers: list[tuple[str, OpenAIProvider | OllamaProvider]] = []
+
+        if not self._settings.use_ollama_only:
+            pool = self._settings.openai_key_pool
+            for i, key in enumerate(pool):
+                label = "openai" if i == 0 else f"openai#{i + 1}"
+                self._providers.append((
+                    label,
+                    OpenAIProvider(
+                        api_key=key,
+                        model=self._settings.openai_model,
+                        base_url=self._settings.openai_base_url,
+                    ),
+                ))
+            # Groq last-resort (OpenAI-compatible), only if a key is configured.
+            if self._settings.groq_api_key:
+                self._providers.append((
+                    "groq",
+                    OpenAIProvider(
+                        api_key=self._settings.groq_api_key,
+                        model=self._settings.groq_model,
+                        base_url=self._settings.groq_base_url,
+                    ),
+                ))
 
         self._ollama = OllamaProvider(
             self._http,
             base_url=self._settings.ollama_base_url,
             model=self._settings.ollama_model,
+        )
+        # Ollama is the final fallback (works offline if a model is pulled).
+        self._providers.append(("ollama", self._ollama))
+
+        # Back-compat: first OpenAI provider (used by embeddings).
+        self._openai = next(
+            (p for name, p in self._providers if name.startswith("openai")),
+            None,
         )
 
     async def aclose(self) -> None:
@@ -186,20 +236,19 @@ class AsyncLLMClient:
         await self.aclose()
 
     async def call_json(self, prompt: str, *, max_tokens: int = 1200) -> LLMResult:
-        """Get a structured JSON response, trying OpenAI before Ollama."""
+        """Get a structured JSON response, trying each pooled provider in order.
+
+        Walks the provider pool (OpenAI key #1, key #2, ..., Groq, Ollama) and
+        returns the first success. Only raises if EVERY provider fails — so a
+        single dead/expired/quota-exhausted key is handled transparently.
+        """
         errors: dict[str, str] = {}
-
-        if self._openai is not None:
+        for name, provider in self._providers:
             try:
-                return await self._call_provider("openai", self._openai, prompt, max_tokens)
-            except Exception as exc:
-                errors["openai"] = str(exc)
-
-        try:
-            return await self._call_provider("ollama", self._ollama, prompt, max_tokens)
-        except Exception as exc:
-            errors["ollama"] = str(exc)
-
+                return await self._call_provider(name, provider, prompt, max_tokens)
+            except Exception as exc:  # noqa: BLE001 - try the next provider
+                errors[name] = str(exc)
+                logger.warning("LLM provider '%s' failed, trying next: %s", name, str(exc)[:120])
         raise LLMAllProvidersFailedError(errors)
 
     async def _call_provider(
@@ -221,14 +270,32 @@ class AsyncLLMClient:
                 timeout=settings.llm_timeout_seconds,
             )
 
+        # Try the call, and if the model returns JSON we cannot parse/repair,
+        # retry the whole call a couple of times — gpt-oss occasionally
+        # truncates or malforms a response but succeeds on a fresh attempt.
         start = time.perf_counter()
-        raw_text = await _attempt()
+        raw_text = ""
+        parsed: dict[str, Any] | None = None
+        last_parse_err: Exception | None = None
+        for _parse_try in range(3):
+            try:
+                raw_text = await _attempt()
+                parsed = parse_json_response(raw_text)
+                break
+            except LLMProviderError as exc:
+                # Empty response (reasoning model spent its budget thinking) —
+                # retry a fresh call.
+                last_parse_err = exc
+                continue
+            except Exception as exc:  # noqa: BLE001 - retry on any parse failure
+                last_parse_err = exc
+                continue
         latency_ms = (time.perf_counter() - start) * 1000
 
-        try:
-            parsed = parse_json_response(raw_text)
-        except Exception as exc:
-            raise LLMProviderError(f"{name} returned unparsable JSON: {exc}") from exc
+        if parsed is None:
+            raise LLMProviderError(
+                f"{name} returned no usable JSON after retries: {last_parse_err}"
+            )
 
         return LLMResult(
             parsed=parsed,

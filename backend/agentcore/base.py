@@ -165,8 +165,13 @@ class Agent(ABC):
 
     # -- LLM + confidence helpers ------------------------------------------
 
-    async def ask_llm_json(self, instructions: str, *, max_tokens: int = 1200) -> LLMResult:
-        """Call this agent's LLM with its persona prepended, returning parsed JSON."""
+    async def ask_llm_json(self, instructions: str, *, max_tokens: int = 2500) -> LLMResult:
+        """Call this agent's LLM with its persona prepended, returning parsed JSON.
+
+        The default budget is generous because ``gpt-oss`` style models spend
+        internal reasoning tokens before emitting output; too tight a cap can
+        yield an empty or truncated response.
+        """
         prompt = f"{self.system_prompt}\n\n{instructions}"
         return await self.llm.call_json(prompt, max_tokens=max_tokens)
 

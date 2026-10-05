@@ -9,6 +9,7 @@ everything else uses ``/v2``. New handlers are registered **once** on this
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, UploadFile, File
@@ -35,6 +36,8 @@ from .schemas import (
 )
 
 router = APIRouter()
+
+logger = logging.getLogger(__name__)
 
 
 # --------------------------------------------------------------------------
@@ -240,10 +243,14 @@ async def upload_claim(file: UploadFile = File(...)) -> UploadResponse:
     ``/claims/{id}/process`` can act on it.
     """
     content = await file.read()
-    raw_text = _extract_text(content)
+    raw_text, ocr_meta = _extract_text(content)
     if not raw_text.strip():
         raise HTTPException(
-            status_code=400, detail="Could not extract text from uploaded file"
+            status_code=400,
+            detail=(
+                ocr_meta.get("error")
+                or "Could not extract text from the uploaded file."
+            ),
         )
 
     claim_id = new_id()
@@ -252,7 +259,12 @@ async def upload_claim(file: UploadFile = File(...)) -> UploadResponse:
         "stage": ClaimStage.INGESTED.value,
         "source_filename": file.filename,
         "raw_text": raw_text,
-        "file_meta": {"filename": file.filename, "size_kb": len(content) // 1024},
+        "file_meta": {
+            "filename": file.filename,
+            "size_kb": len(content) // 1024,
+            "ocr_method": ocr_meta.get("method"),
+            "ocr_meta": ocr_meta,
+        },
     })
     return UploadResponse(
         claim_id=claim_id,
@@ -502,17 +514,26 @@ async def process_file_upload(file: UploadFile = File(...)) -> dict:
     frontend reads plus the new canonical blocks).
     """
     content = await file.read()
-    raw_text = _extract_text(content)
+    raw_text, ocr_meta = _extract_text(content)
     if not raw_text.strip():
         raise HTTPException(
-            status_code=400, detail="Could not extract text from uploaded file"
+            status_code=400,
+            detail=(
+                ocr_meta.get("error")
+                or "Could not extract text from the uploaded file."
+            ),
         )
 
     claim_id = new_id()
     return await _run_and_store(
         claim_id,
         raw_text,
-        {"filename": file.filename, "size_kb": len(content) // 1024},
+        {
+            "filename": file.filename,
+            "size_kb": len(content) // 1024,
+            "ocr_method": ocr_meta.get("method"),
+            "ocr_meta": ocr_meta,
+        },
     )
 
 
@@ -521,19 +542,28 @@ async def process_file_upload(file: UploadFile = File(...)) -> dict:
 # --------------------------------------------------------------------------
 
 
-def _extract_text(content: bytes) -> str:
-    """Extract text from an uploaded file; fall back to a plain-text decode."""
-    import fitz  # PyMuPDF
+def _extract_text(content: bytes) -> tuple[str, dict]:
+    """Extract text from an uploaded file.
 
-    raw_text = ""
+    PDFs: use the text layer when present (fast, offline), else fall back to
+    Gemini vision OCR for scanned/image PDFs (see ``agentcore.vision_ocr``).
+    Non-PDFs: decode bytes as UTF-8 text.
+
+    Returns ``(text, meta)`` where ``meta`` records how extraction happened
+    (``method`` is one of ``text_layer`` / ``vision_ocr`` / ``plain_text`` /
+    ``ocr_failed``) so it can be surfaced in the response logs.
+    """
+    from ..vision_ocr import VisionOCRError, extract_text_from_pdf
+
     try:
-        doc = fitz.open(stream=content, filetype="pdf")
-        for page in doc:
-            raw_text += page.get_text()
-        doc.close()
+        return extract_text_from_pdf(content)
+    except VisionOCRError as exc:
+        # Scanned PDF but vision OCR unavailable/failed — return empty text with
+        # a descriptive meta so the caller can degrade gracefully (no 500).
+        logger.warning("Vision OCR failed: %s", exc)
+        return "", {"method": "ocr_failed", "error": str(exc)}
     except Exception:  # noqa: BLE001 - not a PDF -> treat as plain text
-        raw_text = content.decode("utf-8", errors="ignore")
-    return raw_text
+        return content.decode("utf-8", errors="ignore"), {"method": "plain_text"}
 
 
 async def _run_and_store(
@@ -548,7 +578,7 @@ async def _run_and_store(
         raw_text=raw_text,
         file_meta=file_meta,
     )
-    response = _build_process_response(state, raw_text, claim_id)
+    response = _build_process_response(state, raw_text, claim_id, file_meta)
     await blackboard.set_many(claim_id, {
         "stage": state.stage.value,
         "final_verdict": response["recommendation"],
@@ -660,7 +690,9 @@ def _provenance_summary_from_dict(master_form: dict[str, Any]) -> ProvenanceSumm
     )
 
 
-def _build_process_response(state: Any, raw_text: str, claim_id: str) -> dict:
+def _build_process_response(
+    state: Any, raw_text: str, claim_id: str, file_meta: dict | None = None
+) -> dict:
     """Build the canonical §10 ``/process`` response.
 
     Every legacy key the frontend reads is preserved; the new canonical blocks
@@ -723,6 +755,36 @@ def _build_process_response(state: Any, raw_text: str, claim_id: str) -> dict:
 
     jurisdiction = master_form.get("jurisdiction") or {}
 
+    # Prepend an extraction/OCR log line so the UI shows how text was obtained
+    # (text layer vs vision OCR), including page counts for scanned documents.
+    step_logs = list(getattr(state, "_step_logs", []) or [])
+    ocr_meta = (file_meta or {}).get("ocr_meta") or {}
+    if ocr_meta:
+        method = ocr_meta.get("method", "unknown")
+        if method == "vision_ocr":
+            summary = (
+                f"Vision OCR ({ocr_meta.get('provider') or ocr_meta.get('model', '')}): "
+                f"{ocr_meta.get('pages_processed')}/{ocr_meta.get('pages_total')} pages"
+                + (" (truncated)" if ocr_meta.get("truncated") else "")
+            )
+            status = "warning" if ocr_meta.get("truncated") else "ok"
+        elif method == "text_layer":
+            summary = f"Text layer extracted ({ocr_meta.get('pages_processed')} pages, no OCR needed)"
+            status = "ok"
+        elif method == "ocr_failed":
+            summary = f"OCR failed: {ocr_meta.get('error', 'unknown error')}"
+            status = "error"
+        else:
+            summary = f"Text extracted via {method}"
+            status = "ok"
+        step_logs = [{
+            "agent": "document_intake",
+            "action": "extract_text",
+            "summary": summary,
+            "status": status,
+            "method": method,
+        }] + step_logs
+
     return {
         # --- legacy keys preserved ---
         "claimData": _claim_data_adapter(master_form),
@@ -774,7 +836,7 @@ def _build_process_response(state: Any, raw_text: str, claim_id: str) -> dict:
         "provenanceSummary": _provenance_summary_from_dict(master_form).model_dump(),
         "agentFindings": [f.model_dump(mode="json") for f in state.findings],
         "debate": debate,
-        "logs": getattr(state, "_step_logs", []) or [],
+        "logs": step_logs,
         "jurisdiction": jurisdiction,
     }
 

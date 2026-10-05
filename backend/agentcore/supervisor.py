@@ -71,6 +71,58 @@ logger = logging.getLogger(__name__)
 MAX_DEBATE_ROUNDS = 2
 
 
+# A field provenance envelope looks like:
+#   {"field","value","source_document","page","confidence","status","conflicts","note"}
+# Agents only need the value (and whether it's missing/conflicting), so we
+# flatten each envelope to keep the per-agent payload small.
+_ENVELOPE_KEYS = {"field", "value", "source_document", "page", "confidence", "status", "conflicts", "note"}
+
+
+def _flatten_field(obj: Any) -> Any:
+    """Flatten a provenance envelope to its value, marking gaps explicitly."""
+    if isinstance(obj, dict) and _ENVELOPE_KEYS & set(obj.keys()):
+        status = obj.get("status")
+        if status == "MISSING" or obj.get("value") in (None, "", []):
+            return "MISSING"
+        if status == "CONFLICT":
+            vals = [c.get("value") for c in (obj.get("conflicts") or []) if isinstance(c, dict)]
+            return {"CONFLICT": vals or obj.get("value")}
+        return obj.get("value")
+    return obj
+
+
+def _compact_claim(form_dict: dict[str, Any]) -> dict[str, Any]:
+    """Produce a token-light version of the Master Claim Form for agents.
+
+    Scalar fields collapse to their value (or "MISSING"/"CONFLICT"); section
+    dicts are flattened field-by-field; list sections keep their rows but with
+    each cell flattened. Keeps the structure agents expect via ``.get()`` while
+    dropping provenance metadata that would otherwise bloat every request.
+    """
+    compact: dict[str, Any] = {}
+    for section, value in form_dict.items():
+        if section in ("claim_id", "jurisdiction"):
+            compact[section] = value
+            continue
+        if isinstance(value, dict):
+            # A section of fields, or a single envelope.
+            if _ENVELOPE_KEYS & set(value.keys()):
+                compact[section] = _flatten_field(value)
+            else:
+                compact[section] = {k: _flatten_field(v) for k, v in value.items()}
+        elif isinstance(value, list):
+            rows = []
+            for row in value:
+                if isinstance(row, dict):
+                    rows.append({k: _flatten_field(v) for k, v in row.items()})
+                else:
+                    rows.append(row)
+            compact[section] = rows
+        else:
+            compact[section] = value
+    return compact
+
+
 class Supervisor:
     """Workflow orchestrator for the multi-agent claim pipeline."""
 
@@ -136,13 +188,13 @@ class Supervisor:
             if state.stage in (ClaimStage.REJECTED, ClaimStage.FAILED):
                 return state
 
-            await asyncio.sleep(1.5)  # Rate limit delay
+            await asyncio.sleep(0.2)  # small breather between stages
 
             state = await self._run_ocr(state, raw_text, file_meta)
             if state.stage in (ClaimStage.REJECTED, ClaimStage.FAILED):
                 return state
 
-            await asyncio.sleep(1.5)  # Rate limit delay
+            await asyncio.sleep(0.2)  # small breather between stages
 
             state = await self._run_validation(state)
             # Validation issues are noted but DON'T stop the pipeline.
@@ -322,30 +374,29 @@ class Supervisor:
     async def _run_parallel_analysis(
         self, state: ClaimWorkflowState
     ) -> ClaimWorkflowState:
-        """Run analyst agents sequentially with delays to avoid rate limits."""
+        """Run the analyst agents.
+
+        Medical, Policy, and Fraud are independent, so they run CONCURRENTLY
+        (big latency win, fewer sequential network hops). The Risk agent runs
+        afterwards because it decomposes risk from its peers' findings.
+        """
         state.stage = ClaimStage.PARALLEL_ANALYSIS
         claim_data = self._agent_claim(state)
 
-        # Run sequentially with delay to respect Groq free-tier rate limits
-        for role in PARALLEL_ANALYST_ROLES:
+        async def _run_one(role, context=None):
             started = time.perf_counter()
             try:
-                # The Risk agent decomposes risk from its peers' findings (incl.
-                # detecting ABSTAIN/agent_unavailable). Since analysts run in
-                # order with Risk last, its peers are already on state.findings.
-                analyze_context = None
-                if role == AgentRole.RISK_ASSESSMENT:
-                    analyze_context = {
-                        "findings": [
-                            f.model_dump(mode="json")
-                            for f in state.findings
-                            if f.agent in PARALLEL_ANALYST_ROLES
-                        ]
-                    }
                 finding = await self._analysts[role].analyze(
-                    claim_id=state.claim_id, claim=claim_data, context=analyze_context
+                    claim_id=state.claim_id, claim=claim_data, context=context
                 )
-                state.findings.append(finding)
+                return role, finding, started, None
+            except (LLMAllProvidersFailedError, Exception) as exc:  # noqa: BLE001
+                logger.error("Analyst %s failed: %s", role.value, exc)
+                return role, self._abstain_finding(role, state.claim_id, exc), started, exc
+
+        def _record(role, finding, started, exc):
+            state.findings.append(finding)
+            if exc is None:
                 state.decision_path = state.decision_path.append(
                     DecisionStep(
                         agent=role,
@@ -360,19 +411,33 @@ class Supervisor:
                     input_summary="master_form",
                     output_summary=finding.reasoning[:120],
                 )
-                # Risk agent may publish a decomposed RiskBreakdown on the state.
-                self._capture_risk_breakdown(state, role, finding)
-            except (LLMAllProvidersFailedError, Exception) as exc:  # noqa: BLE001
-                logger.error("Analyst %s failed: %s", role.value, exc)
-                finding = self._abstain_finding(role, state.claim_id, exc)
-                state.findings.append(finding)
+            else:
                 self._log_step(
                     state, role, "analyzed_claim",
                     started=started, status="error", finding=finding, error=str(exc),
                     input_summary="master_form",
                 )
-            # Small delay between calls to avoid rate limiting
-            await asyncio.sleep(1.5)
+
+        # --- Phase 1: medical, policy, fraud run concurrently ---
+        peer_roles = [r for r in PARALLEL_ANALYST_ROLES if r != AgentRole.RISK_ASSESSMENT]
+        results = await asyncio.gather(*[_run_one(r) for r in peer_roles])
+        for role, finding, started, exc in results:
+            _record(role, finding, started, exc)
+
+        # --- Phase 2: risk agent, with its peers' findings as context ---
+        if AgentRole.RISK_ASSESSMENT in self._analysts:
+            risk_ctx = {
+                "findings": [
+                    f.model_dump(mode="json")
+                    for f in state.findings
+                    if f.agent in PARALLEL_ANALYST_ROLES
+                ]
+            }
+            role, finding, started, exc = await _run_one(
+                AgentRole.RISK_ASSESSMENT, context=risk_ctx
+            )
+            _record(role, finding, started, exc)
+            self._capture_risk_breakdown(state, role, finding)
         return state
 
     # ------------------------------------------------------------------
@@ -636,16 +701,23 @@ class Supervisor:
         profile: Any,
         extracted: dict[str, Any],
     ) -> dict[str, Any]:
-        """Enriched claim dict threaded to every downstream agent (design §7).
+        """Compact claim dict threaded to every downstream agent (design §7).
 
-        ``{**form.model_dump(mode="json"), "jurisdiction": profile.model_dump(),
-        "raw_extracted": extracted}``. Agents read structured, provenance-tagged
-        values but still tolerate the thin legacy shape via ``.get()``.
+        The full Master Claim Form carries a provenance envelope per field
+        (value/source/page/confidence/status/conflicts/note) which, across ~56
+        fields plus the raw extraction, is far too large to send to every agent
+        under a free-tier token-per-minute budget. Agents only reason over the
+        field *values* (and gaps), so this flattens each scalar field to its
+        value — preserving an explicit "MISSING"/"CONFLICT" marker so agents
+        still see missing/conflicting data — while keeping the list sections
+        (procedures/investigations/medications), billing, and jurisdiction.
+        The bulky ``raw_extracted`` is intentionally dropped (it duplicates the
+        form). Agents read via ``.get()`` so the compact shape is compatible.
         """
-        agent_claim = form.model_dump(mode="json")
-        agent_claim["jurisdiction"] = profile.model_dump()
-        agent_claim["raw_extracted"] = extracted
-        return agent_claim
+        form_dict = form.model_dump(mode="json")
+        compact = _compact_claim(form_dict)
+        compact["jurisdiction"] = profile.model_dump()
+        return compact
 
     def _agent_claim(self, state: ClaimWorkflowState) -> dict[str, Any]:
         """The enriched claim dict, falling back to the raw extraction."""

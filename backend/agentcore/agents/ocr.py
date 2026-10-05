@@ -215,7 +215,9 @@ class OCRAgent(Agent):
             f"Apply the extraction schema above. Be thorough but only report "
             f"values literally present in the text."
         )
-        result = await self.ask_llm_json(instructions, max_tokens=4000)
+        # Large schema (~50 fields x 3 keys) — give ample room so the response
+        # never truncates into unparsable/empty JSON.
+        result = await self.ask_llm_json(instructions, max_tokens=8000)
         parsed: dict[str, Any] = dict(result.parsed or {})
 
         # --- backward-compatible flat keys ---
@@ -265,18 +267,33 @@ class OCRAgent(Agent):
         Returns ``(form, extracted_dict)`` (design §6.1). The LLM supplies
         values only; code assigns status, computes billing, and infers
         jurisdiction.
+
+        The extraction LLM call occasionally returns a sparse/empty payload
+        (truncation or an off response). Since there IS source text, we retry
+        up to 3 times until the form actually captures something — so a flaky
+        single call never leaves the Master Claim Form blank during a demo.
         """
-        extracted = await self.extract(claim_id=claim_id, raw_text=raw_text)
+        has_text = bool((raw_text or "").strip())
+        form = None
+        extracted: dict[str, Any] = {}
+        for _try in range(3):
+            extracted = await self.extract(claim_id=claim_id, raw_text=raw_text)
 
-        profile = infer_jurisdiction(raw_text, extracted.get("currency"))
-        form = build_empty_master_form(claim_id, profile)
+            profile = infer_jurisdiction(raw_text, extracted.get("currency"))
+            form = build_empty_master_form(claim_id, profile)
 
-        self._map_sections(form, extracted, source_document)
-        self._map_lists(form, extracted, source_document)
-        self._map_supporting_documents(form, extracted, source_document)
-        self._map_policy(form, extracted, source_document)
-        self._compute_billing(form, extracted, source_document)
-        self._finalize_claim_info(form, source_document)
+            self._map_sections(form, extracted, source_document)
+            self._map_lists(form, extracted, source_document)
+            self._map_supporting_documents(form, extracted, source_document)
+            self._map_policy(form, extracted, source_document)
+            self._compute_billing(form, extracted, source_document)
+            self._finalize_claim_info(form, source_document)
+
+            # If the document had text but the form captured nothing, the
+            # extraction call likely misfired — retry. Otherwise accept it.
+            populated = len(form.all_fields()) - len(form.missing_fields())
+            if not has_text or populated > 0:
+                break
 
         extracted["missing_fields"] = form.missing_fields()
         extracted["_master_form"] = form.model_dump(mode="json")
